@@ -18,7 +18,13 @@ updates:
       - /starter
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    # Los saltos de versión mayor (vitest 5, TypeScript 7, etc.) se hacen a mano:
+    # suelen romper peer dependencies entre paquetes. Las alertas de seguridad
+    # siguen llegando por dependabot_security_updates aunque sean mayores.
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
     groups:
       dev:
         dependency-type: development
