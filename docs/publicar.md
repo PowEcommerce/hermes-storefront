@@ -28,7 +28,8 @@ Nadie publica desde su máquina.
 5. Verifica que el commit esté en `main` (`git merge-base --is-ancestor
    $GITHUB_SHA origin/main`; en una simulación sólo avisa).
 6. Arma el tarball (`npm pack`, que corre el `prepack`: build, y en
-   `create-store` además la copia de `starter/` en `template/`) y falla si
+   `create-store` además la copia de los dos templates: `starter-demo/` en
+   `templates/demo` y `starter/` en `templates/skeleton`) y falla si
    lleva algo interno: [`scripts/tarball-sin-internos.sh`](../scripts/tarball-sin-internos.sh)
    (hosts internos, IPs privadas, tokens con valor, access keys de AWS,
    claves PEM, IDs de 32 hex, rutas locales y nombres de marcas). Si aparece

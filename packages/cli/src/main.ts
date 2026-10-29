@@ -14,6 +14,8 @@ import {
   mailSender,
 } from './commands/mail';
 import { envPull, link, unlink } from './commands/link';
+import { envList, envRm, envSet } from './commands/env';
+import { logs } from './commands/logs';
 import { login, logout } from './commands/login';
 import {
   deployTokenCreate,
@@ -32,6 +34,9 @@ Uso: hermes <comando> [opciones]
   create [carpeta]      Crear una tienda nueva desde el starter (= npm create
                         @hermesecommerce/store; mismas opciones: --no-install,
                         --pm <gestor>, --link/--no-link; \`hermes create --help\`)
+      --template demo|skeleton
+                        demo (default): la tienda completa de ejemplo;
+                        skeleton: lo mínimo para arrancar tu diseño
   login                 Entrar con tu usuario del backoffice (abre el navegador)
       --api <url>       API (default https://api.pow.la)
       --no-browser      No abrir el navegador, sólo mostrar el link
@@ -50,8 +55,17 @@ Uso: hermes <comando> [opciones]
       --revalidate-url <url>  Crea el webhook storefront/revalidate
   unlink [--revoke]     Sacar las variables HERMES_* y el link (--revoke: y revocar
                         tus tokens de desarrollo)
-  env pull [--rotate]   Verificar/actualizar el .env (--rotate: tus tokens de
-                        desarrollo nuevos)
+  env pull [--rotate] [--environment production|preview]
+                        Verificar/actualizar el .env y bajar las variables NO
+                        secretas del proyecto (--rotate: tus tokens de
+                        desarrollo nuevos). Los secretos nunca se bajan
+  env list [--environment production|preview] [--json]
+                        Variables de entorno de la tienda (las secretas,
+                        enmascaradas)
+  env set NOMBRE=valor [--secret] [--environment production|preview]
+                        Crear/cambiar una variable (default production). Se
+                        aplica en el próximo \`hermes deploy\`
+  env rm NOMBRE [--environment production|preview] [--yes]
   tokens [list] [--all] Los tokens de la marca (tuyos, de la tienda, de otros)
   tokens revoke <id>    Revocar un token tuyo
   tokens rotate --runtime [--environment production|preview]
@@ -79,6 +93,15 @@ Uso: hermes <comando> [opciones]
   deployments rm [--branch x] [--yes]
                         Borrar la preview de una branch (default: la de git)
   rollback <id> [--yes] Volver a poner en el aire la versión de un deploy
+  logs                  Logs de la tienda publicada (pedidos, console.log,
+                        errores): en vivo hasta 15 minutos (Ctrl+C para salir)
+      --preview [--branch x]  Los de una preview (default: la branch de git)
+      --status error|ok       Sólo los pedidos con error (5xx, excepción,
+                              console.error) o sólo los que anduvieron
+      --search <texto>        Los que contienen ese texto
+      --since <30s|15m|1h|2d> Mostrar también los recientes (hasta 7 días)
+      --no-follow             Mostrar y salir (sin quedar en vivo)
+      --json                  Un evento JSON por línea
   deploy-token create [--environment production|preview]
                         Token para deployar desde CI (HERMES_DEPLOY_TOKEN; admin)
   deploy-token list | revoke <id>
@@ -114,6 +137,11 @@ const COMANDOS: Record<string, Comando> = {
   link,
   unlink,
   'env pull': envPull,
+  env: envList,
+  'env list': envList,
+  'env set': envSet,
+  'env rm': envRm,
+  logs,
   dev,
   preview,
   deploy,
@@ -154,6 +182,8 @@ const BOOLEANOS = [
   'runtime',
   'force',
   'all',
+  'secret',
+  'follow',
 ];
 
 /** Corre la CLI y devuelve el código de salida. */

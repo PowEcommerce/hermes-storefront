@@ -22,7 +22,7 @@ export const CARPETA_EN_EL_REPO: Record<Template, string> = { demo: 'starter-dem
  */
 export const VERSIONES_PUBLICADAS: Record<string, string> = {
   '@hermesecommerce/storefront': '^0.1.0',
-  '@hermesecommerce/cli': '^0.1.2',
+  '@hermesecommerce/cli': '^0.2.0',
 };
 
 /** Major de una versión ("^0.1.0" → 0). */
