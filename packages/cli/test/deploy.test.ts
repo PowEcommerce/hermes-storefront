@@ -19,6 +19,27 @@ const ASSETS: Record<string, string> = {
   '.assetsignore': '_worker.js', // oculto: no se sube
 };
 
+/** El manifest de rutas de `next build` (el de verdad trae también /_global-error, que Next no lista). */
+const RUTAS = { '/page': '/', '/_not-found/page': '/_not-found', '/_global-error/page': '/_global-error', '/producto/[slug]/page': '/producto/[slug]' };
+
+/** Lo que imprimen de verdad npm, OpenNext/Next y wrangler (recortado). */
+const SALIDA_INSTALACION = 'npm warn EBADENGINE Unsupported engine {\nnpm warn deprecated glob@7.2.3: Glob versions prior to v9\n';
+const SALIDA_INSTALACION_FALLIDA =
+  'npm warn EBADENGINE Unsupported engine {\nnpm error code ETARGET\nnpm error notarget No matching version found for wrangler@^99.\nnpm error A complete log of this run can be found in: /x.log\n';
+const SALIDA_BUILD =
+  '┌─────────────────────────────┐\n│ OpenNext — Cloudflare build │\n└─────────────────────────────┘\n\n▲ Next.js 16.4.3 (Turbopack)\nRoute (app)\n┌ ○ /\n└ ƒ /producto/[slug]\nBundling middleware function...\nApplying code patches: 1.683s\nOpenNext build complete.\n';
+const SALIDA_BUILD_FALLIDO =
+  '┌─────────────────────────────┐\n│ OpenNext — Cloudflare build │\n└─────────────────────────────┘\n' +
+  'npm warn EBADENGINE Unsupported engine {\n' +
+  '\x1b[31m▲ Next.js 16.4.3 (Turbopack)\x1b[39m\n' +
+  `  [cause]: Error [HermesConfigError]: createStorefrontClient: token inválido ${'pst_' + '7'.repeat(40)}\n` +
+  `  authorization: Bearer ${'hct_' + 'a'.repeat(40)}\n` +
+  `  HERMES_PRIVATE_TOKEN=${'psk_' + '2'.repeat(40)}\n` +
+  '  secreto del CMS: token-local-del-cms\n' +
+  '> Build error occurred\nError: Failed to collect page data for /_not-found\n';
+const SALIDA_WRANGLER =
+  '\n ⛅️ wrangler 4.155.0\n───────────────────\nYour Worker has access to the following bindings:\nBinding            Resource\nenv.ASSETS         Assets\n--dry-run: exiting now.\n';
+
 const DEPLOY = {
   id: 5,
   project: 'tienda',
@@ -166,13 +187,21 @@ async function proyecto(
   t.ctx.env = { CLOUDFLARE_API_TOKEN: 'no-debe-pasar', PATH: '/bin' };
   const durante: { envExiste: boolean }[] = [];
   let fallarBuild = false;
+  let fallarInstalacion = false;
   let filtrar = '';
-  t.ctx.spawn = async (cmd, args, o) => {
+  /** Por dónde corrió cada proceso: `run` (capturado) o `spawn` (terminal). */
+  const via: ('run' | 'spawn')[] = [];
+  const falso = async (cmd: string, args: string[], o: { cwd: string; env: Record<string, string | undefined> }) => {
     t.procesos.push({ cmd, args, cwd: o.cwd, env: o.env });
     durante.push({ envExiste: await stat(join(t.cwd, '.env')).then(() => true, () => false) });
+    if (fallarInstalacion && args.includes('install')) return 1;
     if (fallarBuild && args.includes('opennextjs-cloudflare')) return 1;
-    if (args.includes('opennextjs-cloudflare'))
+    if (args.includes('opennextjs-cloudflare')) {
       for (const [rel, txt] of Object.entries(ASSETS)) await w(`.open-next/assets/${rel}`, txt);
+      await w('.next/app-path-routes-manifest.json', JSON.stringify(RUTAS));
+      // Next genera /404 y /500 (pages) aunque la tienda sea app router: no cuentan.
+      await w('.next/server/pages-manifest.json', JSON.stringify({ '/404': 'pages/404.html', '/500': 'pages/500.html' }));
+    }
     if (args.includes('--dry-run')) {
       await w('.hermes/build/worker/worker.js', `export default {}${filtrar}`);
       await w('.hermes/build/worker/chunks/a.js', 'export const a = 1');
@@ -181,11 +210,26 @@ async function proyecto(
     }
     return 0;
   };
+  t.ctx.spawn = async (cmd, args, o) => {
+    via.push('spawn');
+    return falso(cmd, args, o);
+  };
+  t.ctx.run = async (cmd, args, o) => {
+    via.push('run');
+    const code = await falso(cmd, args, o);
+    let output = '';
+    if (args.includes('install')) output = code ? SALIDA_INSTALACION_FALLIDA : SALIDA_INSTALACION;
+    else if (args.includes('opennextjs-cloudflare')) output = code ? SALIDA_BUILD_FALLIDO : SALIDA_BUILD;
+    else if (args.includes('--dry-run')) output = SALIDA_WRANGLER;
+    return { code, output };
+  };
   return {
     ...t,
     api: a,
     durante,
+    via,
     fallar: () => (fallarBuild = true),
+    fallarInstalacion: () => (fallarInstalacion = true),
     filtrarEnElWorker: (v: string) => (filtrar = `;const x="${v}"`),
   };
 }
@@ -236,8 +280,8 @@ describe('hermes deploy', () => {
     expect(JSON.stringify(t.api.llamadas.map((c) => (c.body instanceof FormData ? null : c.body)))).not.toMatch(/pst_1|psk_/);
     expect(await (form.get('worker.js') as Blob).text()).toBe('export default {}');
     const texto = t.out.join('\n');
-    expect(texto).toContain('Deploy #5 en el aire');
-    expect(texto).toContain('https://tienda--mimarca.hermescdn.app');
+    expect(texto).toContain('🌐 https://tienda--mimarca.hermescdn.app');
+    expect(texto).toContain('Deploy #5');
     // Nunca habló con Cloudflare.
     expect(t.api.llamadas.every((c) => c.path.startsWith('/api/cli/'))).toBe(true);
   });
@@ -256,7 +300,13 @@ describe('hermes deploy', () => {
   it('sin config ni herramientas: crea open-next.config.ts + wrangler.jsonc e instala con --yes', async () => {
     const t = await proyecto({ config: false, herramientas: false });
     expect(await main(['deploy', '--yes'], t.ctx)).toBe(0);
-    expect(t.procesos[0]).toMatchObject({ cmd: 'npm', args: ['install', '-D', '@opennextjs/cloudflare@^1', 'wrangler@^4'] });
+    // En silencio: sin los avisos de npm (engines, deprecated, audit, fund).
+    expect(t.procesos[0]).toMatchObject({
+      cmd: 'npm',
+      args: ['install', '-D', '@opennextjs/cloudflare@^1', 'wrangler@^4', '--silent', '--no-audit', '--no-fund'],
+    });
+    expect(t.out).toContain('✔ Herramientas de build instaladas (@opennextjs/cloudflare, wrangler)');
+    expect(t.out.join('\n')).not.toContain('EBADENGINE');
     const w = parseJsonc(await readFile(join(t.cwd, 'wrangler.jsonc'), 'utf8')) as any;
     expect(w).toMatchObject({ main: '.open-next/worker.js', assets: { directory: '.open-next/assets' } });
     expect(w.compatibility_flags).toContain('nodejs_compat');
@@ -347,6 +397,14 @@ describe('hermes deploy — secretos fuera del build (auditoría #5)', () => {
     expect((fin.body as FormData).get('secrets')).toBeNull();
   });
 
+  it('sin .env (CI con HERMES_DEPLOY_TOKEN): deploya igual', async () => {
+    const t = await proyecto();
+    await rm(join(t.cwd, '.env'));
+    t.ctx.env = { ...t.ctx.env, HERMES_DEPLOY_TOKEN: HDT };
+    expect(await main(['deploy'], t.ctx)).toBe(0);
+    await expect(stat(join(t.cwd, '.env'))).rejects.toThrow();
+  });
+
   it('si el build falla, el .env vuelve igual', async () => {
     const t = await proyecto();
     t.fallar();
@@ -372,14 +430,14 @@ describe('hermes deploy — secretos fuera del build (auditoría #5)', () => {
 
   it('si un asset estático (código del cliente) contiene el psk_, aborta sin subir nada', async () => {
     const t = await proyecto();
-    const spawnOriginal = t.ctx.spawn;
-    t.ctx.spawn = async (cmd, args, o) => {
-      const code = await spawnOriginal(cmd, args, o);
+    const runOriginal = t.ctx.run!;
+    t.ctx.run = async (cmd, args, o) => {
+      const r = await runOriginal(cmd, args, o);
       if (args.includes('opennextjs-cloudflare')) {
         await mkdir(join(t.cwd, '.open-next/assets/_next/static/chunks'), { recursive: true });
         await writeFile(join(t.cwd, '.open-next/assets/_next/static/chunks/page.js'), `const k="${PSK}"`);
       }
-      return code;
+      return r;
     };
     expect(await main(['deploy'], t.ctx)).toBe(1);
     expect(t.err.join('\n')).toMatch(/tiene tus secretos .*_next\/static\/chunks\/page\.js/);
@@ -420,6 +478,196 @@ describe('hermes deploy — variables del proyecto (hermes env)', () => {
     const t = await proyecto();
     expect(await main(['deploy'], t.ctx)).toBe(0);
     expect(t.out.join('\n')).not.toContain('Variables del proyecto');
+  });
+});
+
+describe('hermes deploy — salida propia de Hermes', () => {
+  const pasosOk = (out: string[]) => out.filter((l) => l.startsWith('✔ '));
+
+  it('por default no muestra la salida de npm/OpenNext/Next/wrangler: pasos de Hermes, una línea cada uno', async () => {
+    const t = await proyecto();
+    expect(await main(['deploy'], t.ctx)).toBe(0);
+    // Los procesos corrieron capturados, no en la terminal.
+    expect(t.via).toEqual(['run', 'run']);
+    const texto = [...t.out, ...t.err].join('\n');
+    for (const ruido of ['OpenNext — Cloudflare build', 'Route (app)', 'Bundling middleware', 'Applying code patches', '⛅️ wrangler', 'following bindings'])
+      expect(texto).not.toContain(ruido);
+    expect(t.out[0]).toBe('Hermes · deploy de «tienda» (mimarca · producción)');
+    const pasos = pasosOk(t.out);
+    expect(pasos).toHaveLength(5);
+    expect(pasos[0]).toBe('✔ Herramientas de build listas');
+    // 3 rutas: /, /_not-found y /producto/[slug] (sin /_global-error, como la tabla de Next).
+    expect(pasos[1]).toBe('✔ Tienda compilada (3 rutas)');
+    expect(pasos[2]).toMatch(/^✔ Paquete armado \(worker de \d+ B · 3 archivos\)$/);
+    // app.css ya estaba en Hermes: 2 de 3.
+    expect(pasos[3]).toBe('✔ Subida a Hermes (2 de 3 archivos nuevos)');
+    expect(pasos[4]).toMatch(/^✔ Publicada en \d+,\d s$/);
+    expect(texto).toContain('🌐 https://tienda--mimarca.hermescdn.app');
+    // El deploy activo anterior (#6) para volver atrás.
+    expect(texto).toContain('Logs: hermes logs · Variables: hermes env list · Volver atrás: hermes rollback 6');
+    expect(texto).toContain('Tu dominio: hermes domains add www.tu-dominio.com');
+    // Sin terminal: ni spinner ni colores.
+    expect(texto).not.toMatch(/\x1b\[/);
+    // Si sale bien, no deja log; sí agrega .hermes/logs/ al .gitignore.
+    await expect(stat(join(t.cwd, '.hermes/logs'))).rejects.toThrow();
+    expect(await readFile(join(t.cwd, '.gitignore'), 'utf8')).toContain('.hermes/logs/');
+  });
+
+  it('muestra los dominios del proyecto (con su estado) en vez de la sugerencia', async () => {
+    const t = await proyecto({
+      dominios: [
+        [
+          { hostname: 'www.mitienda.com', role: 'storefront', project: 'tienda', status: 'active' },
+          { hostname: 'www.nueva.com', role: 'storefront', project: 'tienda', status: 'pending' },
+          { hostname: 'checkout.mitienda.com', role: 'checkout', project: 'tienda', status: 'active' },
+          { hostname: 'www.otra.com', role: 'storefront', project: 'otro', status: 'active' },
+        ],
+      ],
+    });
+    expect(await main(['deploy'], t.ctx)).toBe(0);
+    const texto = t.out.join('\n');
+    expect(texto).toContain('Dominios: www.mitienda.com, www.nueva.com (pendiente)');
+    expect(texto).not.toContain('www.otra.com');
+    expect(texto).not.toContain('Tu dominio:');
+  });
+
+  it('preview: el entorno en el encabezado y los comandos de la preview', async () => {
+    const t = await proyecto({ git: 'feat/home' });
+    expect(await main(['deploy', '--preview'], t.ctx)).toBe(0);
+    const texto = t.out.join('\n');
+    expect(t.out[0]).toBe('Hermes · deploy de «tienda» (mimarca · preview de feat/home)');
+    expect(texto).toContain('Logs: hermes logs --preview · Variables: hermes env list --environment preview');
+    expect(texto).not.toContain('rollback');
+  });
+
+  it('--verbose (o HERMES_VERBOSE=1): los procesos van a la terminal, como antes, y sin --silent', async () => {
+    for (const como of ['flag', 'env'] as const) {
+      const t = await proyecto({ herramientas: false });
+      if (como === 'env') t.ctx.env = { ...t.ctx.env, HERMES_VERBOSE: '1' };
+      expect(await main(como === 'flag' ? ['deploy', '--yes', '--verbose'] : ['deploy', '--yes'], t.ctx)).toBe(0);
+      expect(t.via).toEqual(['spawn', 'spawn', 'spawn']);
+      expect(t.procesos[0].args).toEqual(['install', '-D', '@opennextjs/cloudflare@^1', 'wrangler@^4']);
+      expect(t.out).toContain('› Compilando la tienda…');
+      expect(t.out).toContain('✔ Tienda compilada (3 rutas)');
+    }
+  });
+
+  it('si el build falla: error claro, últimas líneas sin ruido ni secretos y el log completo (sin secretos)', async () => {
+    const t = await proyecto({ variables: { vars: {}, secret_names: ['CMS_TOKEN'] } });
+    await writeFile(join(t.cwd, '.env'), (await readFile(join(t.cwd, '.env'), 'utf8')) + 'CMS_TOKEN=token-local-del-cms\n');
+    t.fallar();
+    expect(await main(['deploy'], t.ctx)).toBe(1);
+    expect(t.out).toContain('✘ Compilando la tienda');
+    const err = t.err.join('\n');
+    expect(err).toContain('✘ Error: El build de la tienda falló (`npx --no opennextjs-cloudflare build` salió con 1).');
+    expect(err).toContain('Últimas líneas:');
+    expect(err).toContain('    Error: Failed to collect page data for /_not-found');
+    expect(err).toContain('[cause]: Error [HermesConfigError]');
+    // Sin ruido (npm warn, banner de OpenNext) ni ANSI.
+    expect(err).not.toContain('EBADENGINE');
+    expect(err).not.toContain('OpenNext — Cloudflare build');
+    expect(err).not.toMatch(/\x1b\[/);
+    // Ni un secreto: tokens de Hermes, Bearer, ni el valor de una variable secreta.
+    for (const texto of [err]) {
+      expect(texto).not.toMatch(/pst_7{8}|hct_a{8}|psk_2{8}|token-local-del-cms/);
+      expect(texto).toContain('pst_****');
+      expect(texto).toContain('Bearer ****');
+    }
+    const ruta = /Log completo: (\.hermes\/logs\/deploy-[\d-]+\.log)/.exec(err)?.[1];
+    expect(ruta).toBeTruthy();
+    expect(err).toContain('hermes deploy --verbose');
+    const log = await readFile(join(t.cwd, ruta!), 'utf8');
+    // El log tiene TODO (también el ruido), pero no los secretos.
+    expect(log).toContain('$ npx --no opennextjs-cloudflare build');
+    expect(log).toContain('npm warn EBADENGINE');
+    expect(log).toContain('OpenNext — Cloudflare build');
+    expect(log).toContain('→ salió con 1');
+    expect(log).not.toMatch(/pst_7{8}|hct_a{8}|psk_2{8}|token-local-del-cms/);
+    expect(log).toContain('HERMES_PRIVATE_TOKEN=****');
+    expect(log).toContain('secreto del CMS: ****');
+    expect(log).not.toMatch(/\x1b\[/);
+    expect(await readFile(join(t.cwd, '.gitignore'), 'utf8')).toContain('.hermes/logs/');
+    // El .env vuelve igual.
+    expect(await readFile(join(t.cwd, '.env'), 'utf8')).toContain(PSK);
+  });
+
+  it('si falla la instalación de las herramientas: error claro y log', async () => {
+    const t = await proyecto({ herramientas: false });
+    t.fallarInstalacion();
+    expect(await main(['deploy', '--yes'], t.ctx)).toBe(1);
+    expect(t.out).toContain('✘ Instalando las herramientas de build');
+    const err = t.err.join('\n');
+    expect(err).toContain('La instalación de las herramientas de build falló');
+    expect(err).toContain('npm error notarget No matching version found for wrangler@^99.');
+    expect(err).not.toContain('A complete log of this run');
+    expect(err).toMatch(/Log completo: \.hermes\/logs\/deploy-/);
+  });
+
+  it('un error que no es de un proceso (secretos en el build) también deja el log del build', async () => {
+    const t = await proyecto();
+    t.filtrarEnElWorker(PSK);
+    expect(await main(['deploy'], t.ctx)).toBe(1);
+    expect(t.out).toContain('✘ Armando el paquete');
+    const err = t.err.join('\n');
+    expect(err).toMatch(/tiene tus secretos .*worker\.js/);
+    expect(err).not.toContain('Últimas líneas');
+    expect(err).toMatch(/Log completo: \.hermes\/logs\/deploy-/);
+  });
+
+  it('--json: sólo un JSON al final (URL, id, duración, archivos), sin pasos', async () => {
+    const t = await proyecto();
+    gitFalso(t, { branch: 'main' });
+    expect(await main(['deploy', '--json'], t.ctx)).toBe(0);
+    expect(t.out).toHaveLength(1);
+    const r = JSON.parse(t.out[0]);
+    expect(r).toMatchObject({
+      ok: true,
+      id: 5,
+      url: 'https://tienda--mimarca.hermescdn.app',
+      status: 'active',
+      tenant: 'mimarca',
+      project: 'tienda',
+      environment: 'production',
+      branch: null,
+      commit: 'b'.repeat(40),
+      routes: 3,
+      files: { total: 3, uploaded: 2, worker_modules: 2 },
+      previous_id: 6,
+      warnings: [],
+    });
+    expect(typeof r.duration_ms).toBe('number');
+    expect(r.files.worker_bytes).toBeGreaterThan(0);
+  });
+
+  it('--json nunca pregunta: con avisos pide --yes (y los avisos van a stderr)', async () => {
+    const t = await proyecto({ interactive: true });
+    gitFalso(t, { sucio: true });
+    expect(await main(['deploy', '--json'], t.ctx)).toBe(1);
+    expect(t.out).toEqual([]);
+    expect(t.err.join('\n')).toMatch(/cambios sin commitear/);
+    expect(await main(['deploy', '--json', '--yes'], t.ctx)).toBe(0);
+    expect(JSON.parse(t.out.at(-1)!).dirty).toBe(true);
+  });
+
+  it('en una terminal: spinner y colores; con CI=true, una línea por paso; NO_COLOR sin colores', async () => {
+    const t = await proyecto();
+    const escrito: string[] = [];
+    t.ctx.tty = true;
+    t.ctx.write = (x) => escrito.push(x);
+    expect(await main(['deploy'], t.ctx)).toBe(0);
+    expect(escrito.join('')).toContain('Compilando la tienda…');
+    expect(escrito.join('')).toMatch(/⠋/);
+    expect(t.out.join('\n')).toContain('\x1b[32m✔\x1b[39m Tienda compilada (3 rutas)');
+
+    const u = await proyecto();
+    const escritoCi: string[] = [];
+    u.ctx.tty = true;
+    u.ctx.write = (x) => escritoCi.push(x);
+    u.ctx.env = { ...u.ctx.env, CI: 'true', NO_COLOR: '1' };
+    expect(await main(['deploy'], u.ctx)).toBe(0);
+    expect(escritoCi).toEqual([]);
+    expect(pasosOk(u.out)).toHaveLength(5);
+    expect(u.out.join('\n')).not.toMatch(/\x1b\[/);
   });
 });
 
@@ -591,7 +839,7 @@ describe('hermes deploy — en equipo', () => {
     const crear = t.api.llamadas.find((c) => c.method === 'POST' && c.path.endsWith('/deployments'))!;
     expect(crear.body.git).toEqual({ commit: 'b'.repeat(40), branch: 'main', dirty: false });
     expect(crear.body.hermes).toEqual({ revalidate_path: '/api/hermes/revalidate' });
-    expect(t.out.join('\n')).toContain('Commit:   bbbbbbb (main)');
+    expect(t.out.join('\n')).toContain('Deploy #5 · commit bbbbbbb (main)');
   });
 
   it('sin git (no es un repo): deploya igual, sin git en el manifest', async () => {
@@ -661,7 +909,7 @@ describe('hermes deploy — en equipo', () => {
     t.ctx.env = { ...t.ctx.env, HERMES_DEPLOY_TOKEN: HDT };
     expect(await main(['deploy'], t.ctx)).toBe(0);
     expect(t.api.llamadas.every((c) => c.auth === `Bearer ${HDT}`)).toBe(true);
-    expect(t.out.join('\n')).toContain('Con:      HERMES_DEPLOY_TOKEN');
+    expect(t.out.join('\n')).toContain('con HERMES_DEPLOY_TOKEN');
     // El token de deploy no llega al build.
     for (const p of t.procesos) expect(p.env.HERMES_DEPLOY_TOKEN).toBeUndefined();
   });

@@ -260,7 +260,7 @@ hay `dev:next`, corre `next dev` directo (y lo mismo con `build`/`start` en
 procesos hijos (`HERMES_CLI_CADENA`) y corta si un comando se llama a sí mismo
 por un camino indirecto.
 
-### `hermes deploy [--preview] [--branch x] [--no-build] [--yes]`
+### `hermes deploy [--preview] [--branch x] [--no-build] [--yes] [--verbose] [--json]`
 
 Publica la tienda en el **hosting de Hermes** (el Cloudflare de Pow, como
 Shopify Oxygen), si el plan de la marca lo incluye. **Nunca usa un token de
@@ -274,7 +274,8 @@ Hermes lo publica.
    falta login.
 2. Si faltan, crea `open-next.config.ts` y `wrangler.jsonc` (el starter ya
    los trae) y ofrece instalar `@opennextjs/cloudflare` y `wrangler`
-   (devDependencies; `--yes` sin preguntar).
+   (devDependencies; `--yes` sin preguntar). La instalación corre en
+   silencio (`--silent --no-audit --no-fund`).
 3. Build: `opennextjs-cloudflare build` + `wrangler deploy --dry-run --outdir
    .hermes/build/worker` (sólo empaqueta; OpenNext corre el script `build`
    del proyecto, que tiene que ser `next build` y no la CLI), sin ninguna variable
@@ -284,7 +285,8 @@ Hermes lo publica.
    aunque el build falle o se corte) y le pasa las variables del `.env` por
    el entorno **sin** `HERMES_PRIVATE_TOKEN` ni `HERMES_REVALIDATE_SECRET`.
    Si igual aparecen en el worker empaquetado, aborta sin subir nada. Agrega
-   `.open-next/`, `.wrangler/` y `.hermes/build/` a tu `.gitignore`.
+   `.open-next/`, `.wrangler/`, `.hermes/build/` y `.hermes/logs/` a tu
+   `.gitignore`.
 4. Sube el manifest (con el commit, la branch y si estaba sucio), los
    assets que Hermes no tiene (por hash) y el worker. **Tus tokens no
    viajan**: la tienda lleva los del proyecto, que pone Hermes como
@@ -296,6 +298,41 @@ Hermes lo publica.
    branch de git, o `--branch`).
 
 `--no-build` sube el último build sin volver a correrlo.
+
+**La salida.** Por default la CLI no muestra lo que imprimen npm, OpenNext,
+`next build` y wrangler: muestra sus propios pasos (con un spinner en una
+terminal; una línea por paso sin terminal o con `CI=true`; sin colores con
+`NO_COLOR`):
+
+```
+Hermes · deploy de «mi-tienda» (mimarca · producción)
+✔ Herramientas de build listas
+✔ Tienda compilada (15 rutas)
+✔ Paquete armado (worker de 6,2 MB · 21 archivos)
+✔ Subida a Hermes (1 de 21 archivos nuevos)
+✔ Publicada en 9,9 s
+
+🌐 https://mi-tienda--mimarca.hermescdn.app
+   Deploy #42 · commit 3b4d3c3 (main)
+   Dominios: www.mitienda.com
+   Logs: hermes logs · Variables: hermes env list · Volver atrás: hermes rollback 41
+```
+
+Los avisos de la CLI (deploy activo de un commit que no está en tu branch,
+cambios sin commitear, secretos en el build, variables del proyecto en el
+build) se siguen mostrando. Si algo falla, muestra el error, las últimas
+líneas útiles del proceso que falló (sin el ruido de npm ni los frames
+internos) y la ruta del **log completo** en
+`.hermes/logs/deploy-<fecha>.log`, con la salida cruda de todos los pasos.
+El log y las líneas que se muestran pasan por un filtro que tapa los tokens
+(`psk_`, `pst_`, `hct_`, `hdt_`, `whsec_`…), los `Bearer …` y los valores de
+tus secretos; se guardan los últimos 10.
+
+- `--verbose` (o `HERMES_VERBOSE=1`): la salida cruda de cada proceso, como
+  antes, para depurar.
+- `--json`: sólo un JSON al final (`id`, `url`, `status`, `duration_ms`,
+  `routes`, `files`, `domains`, `previous_id`, `warnings`…). Nunca pregunta:
+  si hace falta confirmar algo, pasá `--yes`.
 
 ### `hermes deployments [--json]` · `hermes deployments rm` · `hermes rollback <id> [--yes]`
 
