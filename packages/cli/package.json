@@ -1,0 +1,43 @@
+{
+  "name": "@hermesecommerce/cli",
+  "version": "0.1.0",
+  "description": "CLI de Hermes para agencias: login con tu usuario del backoffice, link de un proyecto a una marca (tokens de storefront en tu .env), deploy en el hosting de Hermes y dominios.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PowEcommerce/hermes-storefront.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/PowEcommerce/hermes-storefront/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/PowEcommerce/hermes-storefront/issues"
+  },
+  "type": "module",
+  "bin": {
+    "hermes": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p test",
+    "test": "vitest run",
+    "smoke:dist": "node scripts/smoke-dist.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}

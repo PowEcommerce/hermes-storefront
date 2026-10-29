@@ -1,0 +1,29 @@
+# Configuración de gitleaks: las reglas por defecto más los tokens de Hermes.
+# La usa .github/workflows/secretos.yml (y `gitleaks dir .` / `gitleaks git .` en local).
+title = "hermes-storefront"
+
+[extend]
+useDefault = true
+
+# Tokens de la Storefront API y de la CLI de Hermes. Los de los tests son de un
+# solo carácter repetido (pst_7777…, hct_aaaa…): no pasan el umbral de entropía.
+[[rules]]
+id = "hermes-storefront-token"
+description = "Token de la Storefront API de Hermes (público pst_, privado psk_, carrito crt_)"
+regex = '''\b(?:pst|psk|crt)_[A-Za-z0-9]{16,}\b'''
+entropy = 3.0
+keywords = ["pst_", "psk_", "crt_"]
+
+[[rules]]
+id = "hermes-cli-token"
+description = "Token de la CLI, de deploy o de integración de Hermes (hct_, hdt_, pit_)"
+regex = '''\b(?:hct|hdt|pit)_[A-Za-z0-9]{16,}\b'''
+entropy = 3.0
+keywords = ["hct_", "hdt_", "pit_"]
+
+[[rules]]
+id = "hermes-webhook-secret"
+description = "Secreto de firma de un webhook de Hermes (whsec_)"
+regex = '''\bwhsec_[A-Za-z0-9+/=_-]{16,}'''
+entropy = 3.0
+keywords = ["whsec_"]

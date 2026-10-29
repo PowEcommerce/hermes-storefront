@@ -1,0 +1,28 @@
+# Actualizaciones de dependencias. Las acciones están fijadas por SHA:
+# Dependabot actualiza el SHA y el comentario de la versión juntos.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      acciones:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directories:
+      - /packages/storefront
+      - /packages/cli
+      - /packages/create-store
+      - /starter
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      dev:
+        dependency-type: development
+        update-types: [minor, patch]
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]

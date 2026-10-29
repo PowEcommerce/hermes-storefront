@@ -1,0 +1,27 @@
+# Dependencias y builds
+node_modules/
+dist/
+.next/
+.open-next/
+.wrangler/
+out/
+*.tsbuildinfo
+next-env.d.ts
+*.tgz
+
+# El template de create-store se copia del starter/ en el prepack
+packages/create-store/template/
+
+# Variables de entorno: nunca se commitean (sí los .env.example, sin valores)
+.env*
+!.env.example
+
+# Link de un proyecto a una marca (`hermes link`). En una tienda real se
+# commitea; en este repo el starter no queda linkeado a ninguna marca.
+.hermes/
+
+# Sistema / editores
+.DS_Store
+*.log
+.vscode/
+.idea/

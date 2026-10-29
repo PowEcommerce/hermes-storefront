@@ -1,0 +1,168 @@
+# ============================================================
+# CI de los paquetes y del starter.
+#
+# - paquetes (storefront, cli, create-store): typecheck, tests, build y smoke
+#   del dist/ en Node 22 y en Node 18 (el mínimo soportado en runtime).
+#   El SDK además chequea que los tipos generados estén al día con
+#   packages/storefront/openapi.yaml.
+# - starter: buildea el SDK y la CLI locales (el starter los usa con
+#   file:../packages/*), typecheck, lint, tests y `next build` SIN la API:
+#   HERMES_API_URL apunta a un puerto cerrado de localhost, así el prerender
+#   usa los fallbacks (marca genérica, listados vacíos) y el build no depende
+#   de ninguna marca ni de la red.
+# - starter-api (opcional): `next build` contra https://api.pow.la con una
+#   marca de demo. Corre sólo si está la variable del repo HERMES_DEMO_TENANT
+#   (Settings → Secrets and variables → Actions → Variables).
+#
+# No publica nada (eso es publish.yml).
+# ============================================================
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  paquetes:
+    name: ${{ matrix.paquete }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        paquete: [storefront, cli, create-store]
+    defaults:
+      run:
+        working-directory: packages/${{ matrix.paquete }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/${{ matrix.paquete }}/package-lock.json
+
+      # Sólo el lockfile, sin scripts de instalación de terceros.
+      - run: npm ci --ignore-scripts
+
+      - name: Tipos generados al día con la OpenAPI
+        if: matrix.paquete == 'storefront'
+        run: npm run check:generated
+
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      - name: Smoke del dist/ (Node 22)
+        run: node scripts/smoke-dist.mjs
+
+      # El tooling (vitest/vite) pide Node 20+, pero los paquetes corren en
+      # Node 18: probamos el dist/ buildeado con Node 18.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 18
+
+      - name: Smoke del dist/ (Node 18)
+        run: node scripts/smoke-dist.mjs
+
+  starter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            packages/storefront/package-lock.json
+            packages/cli/package-lock.json
+            starter/package-lock.json
+
+      - name: SDK local (dist/)
+        working-directory: packages/storefront
+        run: npm ci --ignore-scripts && npm run build
+
+      - name: CLI local (dist/, el bin `hermes` de los scripts dev/preview/deploy)
+        working-directory: packages/cli
+        run: npm ci --ignore-scripts && npm run build
+
+      - name: Dependencias del starter
+        working-directory: starter
+        run: npm ci --ignore-scripts
+
+      - working-directory: starter
+        run: npm run typecheck
+
+      - working-directory: starter
+        run: npm run lint
+
+      - working-directory: starter
+        run: npm test
+
+      # Siempre la CLI del proyecto (script "hermes" → node_modules/.bin). Nunca
+      # `npx hermes`: sin la CLI instalada baja el paquete `hermes` de un tercero.
+      - name: La CLI del proyecto anda (npm run hermes)
+        working-directory: starter
+        run: npm run hermes -- --version
+
+      - name: next build sin la API (prerender con fallbacks)
+        working-directory: starter
+        env:
+          HERMES_TENANT: demo
+          HERMES_API_URL: http://127.0.0.1:65535/api
+        run: npm run build
+
+  starter-api:
+    if: vars.HERMES_DEMO_TENANT != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      HERMES_API_URL: https://api.pow.la/api
+      HERMES_TENANT: ${{ vars.HERMES_DEMO_TENANT }}
+      HERMES_PUBLIC_TOKEN: ${{ vars.HERMES_DEMO_PUBLIC_TOKEN }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            packages/storefront/package-lock.json
+            packages/cli/package-lock.json
+            starter/package-lock.json
+
+      - name: SDK y CLI locales
+        run: |
+          (cd packages/storefront && npm ci --ignore-scripts && npm run build)
+          (cd packages/cli && npm ci --ignore-scripts && npm run build)
+
+      - name: next build contra la API (marca de demo)
+        working-directory: starter
+        run: npm ci --ignore-scripts && npm run build

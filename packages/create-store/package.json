@@ -1,0 +1,45 @@
+{
+  "name": "@hermesecommerce/create-store",
+  "version": "0.1.0",
+  "description": "Crea una tienda headless de Hermes a partir del starter (Next.js + @hermesecommerce/storefront): npm create @hermesecommerce/store mi-tienda",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PowEcommerce/hermes-storefront.git",
+    "directory": "packages/create-store"
+  },
+  "homepage": "https://github.com/PowEcommerce/hermes-storefront/tree/main/packages/create-store#readme",
+  "bugs": {
+    "url": "https://github.com/PowEcommerce/hermes-storefront/issues"
+  },
+  "type": "module",
+  "bin": {
+    "create-store": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "template",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p test",
+    "test": "vitest run",
+    "template": "node scripts/copy-template.mjs",
+    "prepack": "npm run build && npm run template",
+    "smoke:dist": "node scripts/smoke-dist.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}

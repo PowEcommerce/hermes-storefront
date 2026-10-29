@@ -1,0 +1,313 @@
+# ============================================================
+# Publicación en npm de los paquetes de la org @hermesecommerce
+#
+#   tag storefront-v<versión>   → packages/storefront   → @hermesecommerce/storefront
+#   tag cli-v<versión>          → packages/cli          → @hermesecommerce/cli
+#   tag create-store-v<versión> → packages/create-store → @hermesecommerce/create-store
+#
+# - El tag tiene que coincidir con la `version` del package.json del paquete.
+# - Antes de publicar corre los mismos checks que ci.yml: typecheck, tests,
+#   build y smoke del dist/ (Node 22 y Node 18).
+# - El commit tiene que estar en main (git merge-base --is-ancestor).
+# - Revisa que el tarball no lleve nada interno (scripts/tarball-sin-internos.sh).
+# - Dos jobs: `build` (sin id-token: checks, `npm pack`, grep y artifact) y
+#   `publish` (environment `npm`, id-token, publica EL MISMO .tgz que revisó
+#   `build`, verificado por sha256) con --provenance (el repo es público).
+# - Acciones fijadas por SHA completo (el comentario dice la versión).
+# - create-store: verifica con `npm view` que las versiones del SDK y de la
+#   CLI que pide el template ya estén publicadas.
+# - workflow_dispatch: dry_run (default true) hace `npm publish --dry-run`.
+#   Para publicar de verdad por dispatch hay que correrlo desde el tag del
+#   paquete ("Use workflow from" → el tag), igual que con el push del tag.
+#
+# Orden de la PRIMERA publicación: storefront → cli → create-store.
+# Detalle (y el pase a trusted publishing) en docs/publicar.md.
+# ============================================================
+name: Publicar en npm
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+      - 'create-store-v*'
+      - 'storefront-v*'
+  workflow_dispatch:
+    inputs:
+      paquete:
+        description: Paquete a publicar
+        required: true
+        type: choice
+        options:
+          - storefront
+          - cli
+          - create-store
+      dry_run:
+        description: Sólo simular (npm publish --dry-run)
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}-${{ inputs.paquete || 'tag' }}
+  cancel-in-progress: false
+
+jobs:
+  # Checks, tarball y grep. Sin id-token ni secretos.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      paquete: ${{ steps.paquete.outputs.paquete }}
+      dir: ${{ steps.paquete.outputs.dir }}
+      dry_run: ${{ steps.paquete.outputs.dry_run }}
+      nombre: ${{ steps.version.outputs.nombre }}
+      version: ${{ steps.version.outputs.version }}
+      tgz: ${{ steps.pack.outputs.tgz }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - name: Paquete y modo
+        id: paquete
+        env:
+          EVENTO: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_PAQUETE: ${{ inputs.paquete }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENTO" = "push" ]; then
+            case "$REF_NAME" in
+              storefront-v*)   paquete=storefront ;;
+              cli-v*)          paquete=cli ;;
+              create-store-v*) paquete=create-store ;;
+              *) echo "::error::Tag desconocido: $REF_NAME"; exit 1 ;;
+            esac
+            dry_run=false
+          else
+            paquete="$INPUT_PAQUETE"
+            dry_run="$INPUT_DRY_RUN"
+          fi
+          case "$paquete" in
+            storefront)   dir=packages/storefront ;;
+            cli)          dir=packages/cli ;;
+            create-store) dir=packages/create-store ;;
+            *) echo "::error::Paquete desconocido: $paquete"; exit 1 ;;
+          esac
+          {
+            echo "paquete=$paquete"
+            echo "dir=$dir"
+            echo "dry_run=$dry_run"
+          } >> "$GITHUB_OUTPUT"
+          echo "Paquete: $paquete ($dir) · dry_run=$dry_run"
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Sólo se publica código que ya está en main (un tag sobre una branch
+      # sin mergear no publica). En una simulación sólo avisa.
+      - name: El commit está en main
+        env:
+          DRY_RUN: ${{ steps.paquete.outputs.dry_run }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "OK: $GITHUB_SHA está en origin/main"
+          elif [ "$DRY_RUN" = "true" ]; then
+            echo "::warning::$GITHUB_SHA no está en origin/main (simulación: sigo)."
+          else
+            echo "::error::$GITHUB_SHA no está en origin/main: taggeá un commit de main."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: ${{ steps.paquete.outputs.dir }}/package-lock.json
+
+      - name: El tag coincide con la versión del package.json
+        id: version
+        working-directory: ${{ steps.paquete.outputs.dir }}
+        env:
+          PAQUETE: ${{ steps.paquete.outputs.paquete }}
+          DRY_RUN: ${{ steps.paquete.outputs.dry_run }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          nombre=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          esperado="refs/tags/${PAQUETE}-v${version}"
+          if [ "$REF" != "$esperado" ]; then
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "::warning::Simulación desde $REF (para publicar hace falta el tag ${PAQUETE}-v${version})."
+            else
+              echo "::error::$REF no coincide con la versión del package.json: se esperaba el tag ${PAQUETE}-v${version}."
+              exit 1
+            fi
+          fi
+          if npm view "${nombre}@${version}" version >/dev/null 2>&1; then
+            echo "::error::${nombre}@${version} ya está publicado. Una versión publicada no se reemplaza: subí la versión en el package.json."
+            exit 1
+          fi
+          echo "nombre=$nombre" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Versión a publicar: ${nombre}@${version}"
+
+      # Sólo el lockfile, sin scripts de instalación de terceros.
+      - name: Dependencias (npm ci)
+        working-directory: ${{ steps.paquete.outputs.dir }}
+        run: npm ci --ignore-scripts
+
+      - name: Tipos generados al día con la OpenAPI
+        if: steps.paquete.outputs.paquete == 'storefront'
+        working-directory: ${{ steps.paquete.outputs.dir }}
+        run: npm run check:generated
+
+      - name: Typecheck
+        working-directory: ${{ steps.paquete.outputs.dir }}
+        run: npm run typecheck
+
+      - name: Tests
+        working-directory: ${{ steps.paquete.outputs.dir }}
+        run: npm test
+
+      - name: Build
+        working-directory: ${{ steps.paquete.outputs.dir }}
+        run: npm run build
+
+      - name: Smoke del dist/ (Node 22)
+        working-directory: ${{ steps.paquete.outputs.dir }}
+        run: node scripts/smoke-dist.mjs
+
+      # El tooling pide Node 20+, pero los paquetes soportan Node 18 en runtime.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 18
+
+      - name: Smoke del dist/ (Node 18)
+        working-directory: ${{ steps.paquete.outputs.dir }}
+        run: node scripts/smoke-dist.mjs
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: create-store — el SDK y la CLI que pide el template ya están en npm
+        if: steps.paquete.outputs.paquete == 'create-store'
+        working-directory: packages/create-store
+        env:
+          DRY_RUN: ${{ steps.paquete.outputs.dry_run }}
+        run: |
+          set -euo pipefail
+          faltan=0
+          # VERSIONES_PUBLICADAS de src/create.ts: lo que la tienda nueva pide en su package.json.
+          deps=$(node -e '
+            const src = require("fs").readFileSync("src/create.ts", "utf8");
+            const bloque = src.match(/VERSIONES_PUBLICADAS[^{]*\{([^}]*)\}/);
+            if (!bloque) { console.error("No encuentro VERSIONES_PUBLICADAS en src/create.ts"); process.exit(1); }
+            for (const m of bloque[1].matchAll(/["\x27]([^"\x27]+)["\x27]\s*:\s*["\x27]([^"\x27]+)["\x27]/g)) console.log(m[1] + "@" + m[2]);
+          ')
+          [ -n "$deps" ] || { echo "::error::VERSIONES_PUBLICADAS vacío"; exit 1; }
+          for dep in $deps; do
+            if [ -n "$(npm view "$dep" version 2>/dev/null)" ]; then
+              echo "OK  $dep"
+            else
+              echo "FALTA $dep"
+              faltan=1
+            fi
+          done
+          if [ "$faltan" = 1 ]; then
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "::warning::Faltan en npm versiones que pide el template (primero storefront y cli)."
+            else
+              echo "::error::Faltan en npm versiones que pide el template: publicá primero storefront y cli."
+              exit 1
+            fi
+          fi
+
+      # npm pack corre el prepack (build; en create además la copia del template).
+      # Este .tgz es EXACTAMENTE lo que publica el job `publish`.
+      - name: Tarball (npm pack)
+        id: pack
+        working-directory: ${{ steps.paquete.outputs.dir }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/tarball"
+          mkdir -p "$out"
+          tgz=$(npm pack --pack-destination "$out" | tail -n 1)
+          sha=$(sha256sum "$out/$tgz" | cut -d' ' -f1)
+          {
+            echo "tgz=$tgz"
+            echo "sha256=$sha"
+            echo "path=$out/$tgz"
+          } >> "$GITHUB_OUTPUT"
+          echo "Tarball: $tgz (sha256 $sha)"
+
+      - name: El tarball no lleva nada interno
+        env:
+          TGZ: ${{ steps.pack.outputs.path }}
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          tar xzf "$TGZ" -C "$tmp"
+          scripts/tarball-sin-internos.sh "$tmp/package"
+          echo "Contenido:"; (cd "$tmp/package" && find . -type f | sort)
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tarball
+          path: ${{ steps.pack.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7
+
+  # Publica el .tgz que armó y revisó `build`, sin volver a buildear.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: npm
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: tarball
+          path: tarball
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Es el mismo tarball que revisó build
+        env:
+          TGZ: tarball/${{ needs.build.outputs.tgz }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          echo "$SHA256  $TGZ" | sha256sum -c -
+
+      # --provenance: npm firma de qué repo, workflow y commit salió el
+      # tarball (necesita id-token: write y el repo público).
+      - name: Publicar
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY_RUN: ${{ needs.build.outputs.dry_run }}
+          TGZ: tarball/${{ needs.build.outputs.tgz }}
+        run: |
+          set -euo pipefail
+          if [ "$DRY_RUN" = "true" ]; then
+            npm publish "$TGZ" --access public --provenance --dry-run
+          else
+            npm publish "$TGZ" --access public --provenance
+          fi
