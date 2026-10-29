@@ -86,6 +86,10 @@ Uso: hermes <comando> [opciones]
       --preview         Preview de una branch (URL propia, no toca producción)
       --branch <nombre> La branch de la preview (default: la de git)
       --no-build        Subir el último build (.open-next + .hermes/build)
+      --verbose         Mostrar la salida cruda del build (npm, OpenNext, Next,
+                        wrangler); también HERMES_VERBOSE=1. Sin esto, si algo
+                        falla queda el log completo en .hermes/logs/
+      --json            Sólo un JSON al final (URL, id, duración, archivos)
       --yes, --force    No preguntar (herramientas del build, y deployar aunque
                         el deploy activo sea de un commit que no está en tu branch)
                         Con HERMES_DEPLOY_TOKEN (CI) no hace falta login
@@ -184,6 +188,7 @@ const BOOLEANOS = [
   'all',
   'secret',
   'follow',
+  'verbose',
 ];
 
 /** Corre la CLI y devuelve el código de salida. */

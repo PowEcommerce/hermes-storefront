@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { comandoParaAbrir } from './browser';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.2.1';
 /**
  * User-Agent de los pedidos a la API que no pasan por ApiClient (que manda
  * `clientName`). El WAF de api.pow.la da 403 a los pedidos sin User-Agent; el
@@ -41,6 +41,17 @@ export interface Ctx {
    * `git`). Opcional: sin él, la CLI sigue sin la info de git.
    */
   capture?: (cmd: string, args: string[], opts: SpawnOpts) => Promise<{ code: number; stdout: string }>;
+  /**
+   * Corre un proceso SIN mostrar nada: devuelve su código y su salida
+   * (stdout + stderr, en el orden en que llegó). Para los pasos largos de
+   * `hermes deploy` (build, empaquetado), que muestran pasos propios y guardan
+   * la salida cruda en un log. Opcional: sin él, se usa `spawn`.
+   */
+  run?: (cmd: string, args: string[], opts: SpawnOpts) => Promise<{ code: number; output: string }>;
+  /** stdout es una terminal (spinners y colores). */
+  tty?: boolean;
+  /** Escribir en stdout sin salto de línea (el spinner). */
+  write?: (texto: string) => void;
 }
 
 export interface SpawnOpts {
@@ -95,6 +106,49 @@ function capturar(cmd: string, args: string[], opts: SpawnOpts): Promise<{ code:
   });
 }
 
+/** Tope de lo que se guarda de la salida de un proceso (se queda con el final). */
+const MAX_SALIDA = 16 * 1024 * 1024;
+
+function correrCapturando(cmd: string, args: string[], opts: SpawnOpts): Promise<{ code: number; output: string }> {
+  return new Promise((resolve) => {
+    const partes: Buffer[] = [];
+    let total = 0;
+    const juntar = (b: Buffer) => {
+      partes.push(b);
+      total += b.length;
+      while (total > MAX_SALIDA && partes.length > 1) total -= partes.shift()!.length;
+    };
+    let hijo: ReturnType<typeof spawn>;
+    try {
+      hijo = spawn(cmd, args, {
+        cwd: opts.cwd,
+        env: opts.env as NodeJS.ProcessEnv,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: platform() === 'win32',
+      });
+    } catch (e) {
+      resolve({ code: 127, output: String(e) });
+      return;
+    }
+    hijo.stdout?.on('data', juntar);
+    hijo.stderr?.on('data', juntar);
+    const alInt = () => hijo.kill('SIGINT');
+    const alTerm = () => hijo.kill('SIGTERM');
+    process.on('SIGINT', alInt);
+    process.on('SIGTERM', alTerm);
+    let listo = false;
+    const fin = (code: number, extra = '') => {
+      if (listo) return;
+      listo = true;
+      process.off('SIGINT', alInt);
+      process.off('SIGTERM', alTerm);
+      resolve({ code, output: Buffer.concat(partes).toString('utf8') + extra });
+    };
+    hijo.on('error', (e) => fin(127, `\n${String(e)}\n`));
+    hijo.on('close', (code, signal) => fin(code ?? (signal === 'SIGINT' ? 130 : 1)));
+  });
+}
+
 function abrir(url: string): Promise<boolean> {
   const comando = comandoParaAbrir(url, platform());
   if (!comando) return Promise.resolve(false);
@@ -117,6 +171,9 @@ function abrir(url: string): Promise<boolean> {
 export function ctxReal(): Ctx {
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
   return {
+    tty: Boolean(process.stdout.isTTY),
+    write: (t) => process.stdout.write(t),
+    run: correrCapturando,
     cwd: process.cwd(),
     configDir: configDirDe(process.env),
     env: process.env,

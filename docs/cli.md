@@ -153,6 +153,11 @@ publicar la tienda, no cualquier rol de la marca.
   de ese deploy, con los tokens vigentes de la tienda.
 - `hermes deploy` avisa si el deploy activo es de un commit que no está en tu
   branch o si tenés cambios sin commitear (en CI: `--yes`).
+- La salida es de Hermes: un paso por línea (con spinner en una terminal), sin
+  el ruido de npm, OpenNext, Next y wrangler. Si algo falla, muestra las
+  últimas líneas útiles y guarda el log completo, sin tokens ni secretos, en
+  `.hermes/logs/`. `--verbose` (o `HERMES_VERBOSE=1`) muestra todo crudo y
+  `--json` imprime sólo un JSON al final (URL, id, duración, archivos).
 
 ## Variables de entorno: `hermes env`
 
