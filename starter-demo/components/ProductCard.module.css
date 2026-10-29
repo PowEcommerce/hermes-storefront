@@ -1,0 +1,173 @@
+/* Grilla de la PLP y la búsqueda: 3 columnas en compu (4 desde 1680), 2 en celular. */
+.grilla {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 40px 33px;
+  align-items: start;
+}
+
+@media (min-width: 1680px) {
+  .grilla {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .grilla {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 8px;
+  }
+}
+
+.vacia {
+  padding: 60px 0 40px;
+  text-align: center;
+}
+
+.vaciaTitulo {
+  font: var(--ui-t-cuerpo-m);
+  font-size: 18px;
+}
+
+.vaciaTexto {
+  margin-top: 8px;
+  font: var(--ui-t-cuerpo);
+  color: var(--ui-tinta-2);
+}
+
+.card {
+  width: 100%;
+  color: var(--ui-negro);
+}
+
+.foto {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  background: var(--ui-fondo-foto);
+  overflow: hidden;
+}
+
+.imagen,
+.imagenHover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Hover: la segunda foto, sin zoom. */
+.imagenHover {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+
+.card:hover .imagenHover {
+  opacity: 1;
+}
+
+.datos {
+  padding: 12px 8px 0;
+}
+
+.cucardas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  margin: 0 0 4px;
+  font: var(--ui-t-chico-m);
+}
+
+.cucardas > span {
+  white-space: nowrap;
+}
+
+.cucardaOferta {
+  color: var(--ui-oferta);
+}
+
+.filaTitulo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.titulo {
+  min-width: 0;
+  font: var(--ui-t-nombre);
+  font-weight: 400;
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titulo:hover,
+.titulo:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Colores: círculos de 15 con borde 1. */
+.swatches {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.swatch {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--ui-gris-700);
+}
+
+.precio {
+  margin-top: 6px;
+  font: var(--ui-t-cuerpo);
+  line-height: 1.28;
+}
+
+.precioOferta {
+  color: var(--ui-oferta);
+}
+
+.precioTachado {
+  color: var(--ui-tinta-2);
+}
+
+@media (max-width: 767px) {
+  .datos {
+    padding: 10px 2px 0;
+  }
+
+  .titulo {
+    font-size: 16px;
+  }
+
+  .swatches {
+    display: none;
+  }
+
+  .precio {
+    margin-top: 4px;
+    font-size: 14px;
+  }
+
+  .chica .foto {
+    aspect-ratio: 153 / 222;
+  }
+}

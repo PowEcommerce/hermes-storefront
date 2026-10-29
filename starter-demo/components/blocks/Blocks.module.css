@@ -1,0 +1,590 @@
+/* ---- Página de bloques ----------------------------------------------- */
+.paginaDeBloques {
+  width: 100%;
+  /* Aire entre el último bloque y el footer. */
+  padding-bottom: 126px;
+}
+
+@media (max-width: 767px) {
+  .paginaDeBloques {
+    padding-bottom: 48px;
+  }
+}
+
+/* El hero sube debajo del header fijo (que va transparente encima). */
+.hero {
+  margin-top: calc(-1 * var(--ui-header-alto));
+}
+
+@media (max-width: 767px) {
+  .hero {
+    margin-top: calc(-1 * var(--ui-header-alto-mobile));
+  }
+}
+
+/* ---- Banner ---------------------------------------------------------- */
+.banner {
+  position: relative;
+  margin: 0;
+  height: 100%;
+}
+
+.bannerLink {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bannerImagen {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Media pantalla (fila editorial): la foto llena la celda, en cover. */
+.bannerMitad .bannerImagen {
+  height: 100%;
+  min-height: 100%;
+  aspect-ratio: 719 / 758;
+  object-fit: cover;
+}
+
+.bannerTitulo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max-content;
+  max-width: 90%;
+  transform: translate(-50%, -50%);
+  font: var(--ui-t-h1);
+  letter-spacing: -0.01em;
+  text-align: center;
+  text-wrap: balance;
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .bannerMitad .bannerImagen {
+    aspect-ratio: 375 / 358;
+  }
+
+  .bannerTitulo {
+    font-size: 32px;
+  }
+}
+
+/* ---- BannerButton y slides del carrusel ------------------------------ */
+.slide {
+  position: relative;
+  width: 100%;
+}
+
+/* Slides del carrusel: proporción fija y la foto en cover. */
+.slideFijo {
+  aspect-ratio: 1440 / 767;
+}
+
+.slideFijo .bannerLink {
+  position: absolute;
+  inset: 0;
+}
+
+.slideImagen {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.slideFijo picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 767px) {
+  .slideFijo {
+    aspect-ratio: 375 / 501;
+  }
+}
+
+/* Velo suave abajo para que el texto se lea sobre cualquier foto. */
+.velo {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.35) 100%);
+  pointer-events: none;
+}
+
+/* Bloque de texto abajo al centro. */
+.textos {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  width: 560px;
+  max-width: calc(100% - 40px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.textosIzquierda {
+  left: var(--ui-sangria);
+  transform: none;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.textosDerecha {
+  left: auto;
+  right: var(--ui-sangria);
+  transform: none;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.kicker {
+  margin: 0;
+  font: var(--ui-t-cta);
+  font-weight: 400;
+}
+
+.tituloHero {
+  margin: 8px 0 0;
+  font: var(--ui-t-display);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.botones {
+  margin-top: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.textosIzquierda .botones {
+  justify-content: flex-start;
+}
+
+.textosDerecha .botones {
+  justify-content: flex-end;
+}
+
+/* Colores del backoffice sobre el botón blanco del kit (dos clases para
+   ganarle a .ui-boton sin depender del orden de las hojas). */
+.botones .boton {
+  min-width: 220px;
+  background: var(--boton-fondo);
+  border-color: var(--boton-borde);
+  color: var(--boton-texto);
+  --ui-anillo: var(--boton-texto);
+}
+
+.botones .boton:hover {
+  background: var(--boton-fondo-hover);
+  border-color: var(--boton-borde-hover);
+  color: var(--boton-texto-hover);
+}
+
+@media (max-width: 767px) {
+  .textos {
+    bottom: 56px;
+  }
+
+  .textosIzquierda,
+  .textosDerecha {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    align-items: center;
+    text-align: center;
+  }
+
+  .kicker {
+    font-size: 16px;
+  }
+
+  .tituloHero {
+    font-size: 40px;
+  }
+
+  .botones {
+    margin-top: 16px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .botones .boton {
+    min-width: 0;
+    flex: 1 1 200px;
+  }
+}
+
+/* ---- Carrusel de banners --------------------------------------------- */
+.carrusel {
+  position: relative;
+  overflow: hidden;
+}
+
+.carruselPista {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.carruselPista::-webkit-scrollbar {
+  display: none;
+}
+
+.carruselSlide {
+  width: 100%;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.carruselFlecha {
+  position: absolute;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: #ffffff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--ui-mov-hover) ease-out;
+  z-index: 3;
+}
+
+.carrusel:hover .carruselFlecha,
+.carruselFlecha:focus-visible {
+  opacity: 1;
+}
+
+.carruselAnterior {
+  left: 16px;
+}
+
+.carruselSiguiente {
+  right: 16px;
+}
+
+/* Puntos de 5; el activo es un anillo de 11 con el punto adentro. */
+.puntos {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  z-index: 3;
+}
+
+.punto {
+  position: relative;
+  width: 5px;
+  height: 5px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.punto::before {
+  /* objetivo táctil más grande que el punto */
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.puntoActivo {
+  width: 11px;
+  height: 11px;
+  background: transparent;
+  border: 1px solid #ffffff;
+}
+
+.puntoActivo::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffffff;
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 767px) {
+  .carruselFlecha {
+    display: none;
+  }
+
+  .puntos {
+    bottom: 24px;
+  }
+}
+
+/* ---- Carrusel de productos (SkuCarousel) ------------------------------ */
+.sku {
+  padding: 72px 0 32px var(--ui-sangria);
+}
+
+.skuColumna {
+  height: 100%;
+  padding: 30px var(--ui-sangria);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fila {
+  min-width: 0;
+}
+
+.filaColumna {
+  width: 436px;
+  max-width: 100%;
+}
+
+.filaCabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-right: var(--ui-sangria);
+  margin-bottom: 20px;
+  min-height: 30px;
+}
+
+.filaColumna .filaCabecera {
+  padding-right: 0;
+}
+
+.filaTitulo {
+  margin: 0;
+  font: var(--ui-t-h2);
+}
+
+.filaAcciones {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-left: auto;
+}
+
+.verTodo {
+  font: var(--ui-t-cuerpo);
+}
+
+.flecha {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ui-negro);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.flecha:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Sin padding derecho: la última tarjeta asoma cortada contra el borde. */
+.filaPista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.filaPista::-webkit-scrollbar {
+  display: none;
+}
+
+.filaItem {
+  flex: 0 0 436px;
+  max-width: 80vw;
+  scroll-snap-align: start;
+}
+
+.filaColumna .filaItem {
+  flex-basis: 100%;
+  max-width: none;
+}
+
+/* Solapas: texto 16/500 subrayado en la activa. */
+.solapasCabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 32px;
+  padding-right: var(--ui-sangria);
+  margin-bottom: 8px;
+}
+
+.solapas {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+}
+
+.solapa {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font: var(--ui-t-cuerpo-m);
+  color: var(--ui-tinta-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.solapaActiva {
+  color: var(--ui-negro);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+
+/* Con foto lateral: la foto en el 40% a la izquierda (arriba, en celular). */
+.conLateral {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lateral {
+  display: block;
+  padding-right: var(--ui-sangria);
+}
+
+.lateralImagen {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.conLateralFila {
+  min-width: 0;
+}
+
+@media (min-width: 992px) {
+  .conLateral {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .lateral {
+    flex: 0 0 40%;
+    padding-right: 50px;
+  }
+
+  .conLateralFila {
+    flex: 1 1 60%;
+  }
+}
+
+@media (max-width: 767px) {
+  .sku {
+    padding: 40px 0 16px var(--ui-sangria-mobile);
+  }
+
+  .skuColumna {
+    padding: 0 var(--ui-sangria-mobile) 40px;
+  }
+
+  .filaCabecera,
+  .solapasCabecera {
+    padding-right: var(--ui-sangria-mobile);
+    margin-bottom: 16px;
+  }
+
+  .filaTitulo {
+    font-size: 24px;
+  }
+
+  .filaAcciones .flecha {
+    display: none;
+  }
+
+  .filaPista {
+    gap: 8px;
+  }
+
+  .filaItem {
+    flex-basis: 153px;
+  }
+
+  .lateral {
+    padding-right: var(--ui-sangria-mobile);
+  }
+}
+
+/* ---- RichText -------------------------------------------------------- */
+.richText {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 64px var(--ui-sangria);
+  font: var(--ui-t-cuerpo);
+  text-align: center;
+}
+
+.richText :global(h1),
+.richText :global(h2) {
+  font: var(--ui-t-h1);
+  letter-spacing: -0.01em;
+  margin: 0 0 16px;
+}
+
+.richText :global(h3) {
+  font: var(--ui-t-h2);
+  margin: 0 0 12px;
+}
+
+.richText :global(img) {
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.richText :global(iframe) {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+@media (max-width: 767px) {
+  .richText {
+    padding: 40px var(--ui-sangria-mobile);
+  }
+
+  .richText :global(h1),
+  .richText :global(h2) {
+    font-size: 28px;
+  }
+}

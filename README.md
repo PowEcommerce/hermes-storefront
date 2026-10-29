@@ -8,14 +8,15 @@ comprador, el checkout y los pagos; vos ponés la experiencia.
 |---|---|
 | [`@hermesecommerce/storefront`](packages/storefront) | SDK TypeScript de la Storefront API v2: cliente tipado, errores normalizados, verificación de webhooks y caché por tags con purga (con un subpath para Next.js). Node 18+, Workers, Edge y navegador. |
 | [`@hermesecommerce/cli`](packages/cli) | La CLI `hermes`: login con tu usuario del backoffice, `link` de un proyecto a una marca (tokens en tu `.env`), `dev`, `deploy` al hosting de Hermes, dominios y mails de la marca. |
-| [`@hermesecommerce/create-store`](packages/create-store) | `npm create @hermesecommerce/store`: una tienda nueva a partir del starter. |
-| [`starter/`](starter) | El template: una tienda Next.js completa (home, categorías con filtros, ficha, búsqueda, carrito con cupón, checkout hosteado, cuenta del comprador y purga de caché). |
+| [`@hermesecommerce/create-store`](packages/create-store) | `npm create @hermesecommerce/store`: una tienda nueva a partir de uno de los templates (`--template demo\|skeleton`). |
+| [`starter-demo/`](starter-demo) | Template **demo** (el default): una tienda con diseño completo, lista para mostrar, como la demo store de Hydrogen. Toma los colores, el logo y la fuente de la marca desde la API. |
+| [`starter/`](starter) | Template **skeleton**: la misma tienda Next.js (home, categorías con filtros, ficha, búsqueda, carrito con cupón, checkout hosteado, cuenta del comprador y purga de caché) con lo mínimo de diseño, para armar el tuyo. |
 
 ## Empezar
 
 ```bash
 npm install -g @hermesecommerce/cli    # 1. una vez por máquina
-hermes create mi-marca                 # 2. = npm create @hermesecommerce/store mi-marca
+hermes create mi-marca                 # 2. = npm create @hermesecommerce/store mi-marca (--template skeleton: sin diseño)
 cd mi-marca
 hermes login                           # 3. tu usuario del backoffice
 hermes link                            # 4. elegís la marca → tokens HERMES_* en .env
@@ -57,7 +58,7 @@ const { items } = await pow.catalog.products({ page_number: 1 });
   el checklist antes de salir a producción.
 - [La CLI: login, tokens y permisos](docs/cli.md).
 - [SDK](packages/storefront/README.md) · [CLI](packages/cli/README.md) ·
-  [create-store](packages/create-store/README.md) · [starter](starter/README.md).
+  [create-store](packages/create-store/README.md) · [demo](starter-demo/README.md) · [skeleton](starter/README.md).
 - Referencia de la API (OpenAPI 3.1): `https://api.pow.la/api/v2/openapi.json`
   o [`packages/storefront/openapi.yaml`](packages/storefront/openapi.yaml).
 

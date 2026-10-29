@@ -1,0 +1,149 @@
+/* La página de atrás se desenfoca y apenas se oscurece; el panel hace un fade
+   y las tarjetas entran de a una de izquierda a derecha. El blur es fijo y lo
+   que anima es la opacidad del velo (Safari interpola mal backdrop-filter). */
+.fondo {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0, 0, 0, 0.1);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+}
+
+.fondo.visible {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s ease-out, visibility 0s linear 0s;
+}
+
+.panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: calc(100vh - var(--ui-header-alto));
+  overflow-y: auto;
+  background: var(--ui-blanco);
+  color: var(--ui-negro);
+  padding: 30px 0 48px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+}
+
+.panel.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition: opacity 0.35s ease-out, transform 0.35s ease-out, visibility 0s linear 0s;
+}
+
+.tile {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.panel.visible .tile {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+  transition-delay: calc(0.1s + var(--i, 0) * 0.12s);
+}
+
+.grilla {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0 var(--ui-sangria);
+  max-width: 1440px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 300px));
+  justify-content: center;
+  gap: 40px 32px;
+}
+
+.tileLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.foto {
+  display: block;
+  width: 100%;
+  aspect-ratio: 341 / 392;
+  border-radius: 6px;
+  background: var(--ui-fondo-foto);
+  overflow: hidden;
+}
+
+.foto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.6s ease-in-out;
+}
+
+.tileLink:hover .foto img,
+.tileLink:focus-visible .foto img {
+  opacity: 0.7;
+}
+
+.nombre {
+  display: inline-block;
+  padding: 4px 16px;
+  margin: -4px -16px;
+  border-radius: 4px;
+  font: var(--ui-t-cuerpo-m);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-align: center;
+  transition: background-color 0.33s;
+}
+
+.tileLink:hover .nombre,
+.tileLink:focus-visible .nombre {
+  background-color: color-mix(in srgb, var(--ui-negro) 6%, transparent);
+}
+
+.tileLink:focus-visible {
+  outline: none;
+}
+
+.hijas {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+}
+
+.hija {
+  font: var(--ui-t-chico);
+  font-size: 14px;
+  color: var(--ui-tinta-2);
+  text-decoration: none;
+}
+
+.hija:hover,
+.hija:focus-visible {
+  color: var(--ui-negro);
+  text-decoration: underline;
+}
+
+@media (max-width: 767px) {
+  .fondo,
+  .panel {
+    display: none;
+  }
+}

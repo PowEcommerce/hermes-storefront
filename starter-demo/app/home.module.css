@@ -1,0 +1,136 @@
+/* Home sin bloques: un hero a sangre en la tinta de la marca, debajo del header transparente. */
+.hero {
+  position: relative;
+  margin-top: calc(-1 * var(--ui-header-alto));
+  min-height: min(767px, 92vh);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 120px var(--ui-sangria) 96px;
+  background:
+    radial-gradient(120% 90% at 85% 10%, color-mix(in srgb, var(--ui-blanco) 14%, transparent), transparent 60%),
+    var(--ui-negro);
+  color: #ffffff;
+  overflow: hidden;
+}
+
+.heroTextos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 900px;
+}
+
+.kicker {
+  margin: 0;
+  font: var(--ui-t-cta);
+  font-weight: 400;
+}
+
+.titulo {
+  margin: 8px 0 0;
+  font: 600 clamp(48px, 9vw, 128px) / 0.95 var(--ui-fuente);
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.boton {
+  margin-top: 32px;
+  min-width: 260px;
+}
+
+.destacados {
+  padding: 72px 0 32px var(--ui-sangria);
+}
+
+.item {
+  flex: 0 0 436px;
+  max-width: 80vw;
+  scroll-snap-align: start;
+}
+
+.categorias {
+  padding: 56px var(--ui-sangria) 96px;
+}
+
+.tiles {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tileFoto {
+  display: block;
+  aspect-ratio: 341 / 392;
+  border-radius: 6px;
+  background: var(--ui-fondo-foto);
+  overflow: hidden;
+}
+
+.tileFoto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.6s ease-in-out;
+}
+
+.tile:hover .tileFoto img {
+  opacity: 0.7;
+}
+
+.tileNombre {
+  font: var(--ui-t-nombre);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 767px) {
+  .hero {
+    margin-top: calc(-1 * var(--ui-header-alto-mobile));
+    min-height: 520px;
+    padding: 96px var(--ui-sangria-mobile) 56px;
+  }
+
+  .kicker {
+    font-size: 16px;
+  }
+
+  .boton {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .destacados {
+    padding: 40px 0 16px var(--ui-sangria-mobile);
+  }
+
+  .item {
+    flex-basis: 153px;
+  }
+
+  .categorias {
+    padding: 40px var(--ui-sangria-mobile) 64px;
+  }
+
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 8px;
+  }
+
+  .tileNombre {
+    font-size: 16px;
+  }
+}
