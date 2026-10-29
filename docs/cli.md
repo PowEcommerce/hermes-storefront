@@ -12,7 +12,7 @@ npm install -g @hermesecommerce/cli    # 1. una sola vez por máquina (como `@sh
 hermes create mi-marca                 # 2. = npm create @hermesecommerce/store mi-marca
 cd mi-marca                            # 3.
 hermes login                           # 4. tu usuario del backoffice (una vez por máquina)
-hermes link                            # 5. elegís la marca → tokens HERMES_* en .env
+hermes link                            # 5. elegís la marca → su proyecto + tokens HERMES_* en .env
 hermes dev                             # 6. http://localhost:3000 con los datos de la marca
 hermes deploy                          # 7. publicar en el hosting de Hermes
 hermes domains add www.mi-marca.com    # 8. tu dominio (o desde el admin: Configuración → Dominios)
@@ -53,6 +53,31 @@ mismo usuario y sus mismos accesos.
 > te manda un link de aprobación, no lo apruebes: le estarías dando acceso a
 > tus marcas. La pantalla te muestra el dispositivo (lo informa el propio
 > dispositivo, no está verificado) y avisa si el pedido viene de otra red.
+
+## Un proyecto por tienda
+
+Una marca tiene, por lo general, **un solo proyecto** (su storefront), y
+varios developers trabajan sobre él, como en Hydrogen/Oxygen:
+
+- `hermes link` pide a la API los proyectos de la marca (`GET
+  /api/cli/tenants/<marca>/projects`) y, si hay uno, **linkea ése sin
+  preguntar el nombre**. Si hay varios, elegís de la lista (URL de producción
+  y fecha del último deploy); «Crear un proyecto nuevo» aparece sólo si el
+  plan tiene lugar. Si no hay ninguno, pregunta el nombre y lo crea.
+- Cuenta como proyecto uno con deploys en el hosting (son los que cuenta el
+  plan) o, en una marca sin hosting, uno que tiene tokens de storefront
+  vigentes. Listar no pide ser admin: alcanza con tener acceso a la marca.
+- `hermes link --name <proyecto>` fuerza uno. Si no existe y el plan ya
+  llegó a su tope, falla en el link con el nombre del que existe, no en el
+  `hermes deploy`.
+- Si `.hermes/project.json` apunta a un proyecto que la marca no tiene, el
+  link avisa y ofrece cambiarlo.
+- **Cada uno en su branch**: `hermes deploy --preview` publica tu branch en
+  su URL de preview, sin tocar producción. **Producción** sale de `main`
+  desde CI con un token de deploy (`hermes deploy-token create`; ver
+  [Trabajar en equipo](./guia-agencias.md#trabajar-en-equipo)).
+- Con una API anterior (sin la lista), `hermes link` pregunta el nombre como
+  antes.
 
 ## Los tokens
 
@@ -104,7 +129,9 @@ permisos sólo para deployar su proyecto.
 
 1. La CLI corre el build en tu máquina con `@opennextjs/cloudflare` y lo
    empaqueta con `wrangler deploy --dry-run` (no habla con Cloudflare: no
-   necesitás cuenta ni token).
+   necesitás cuenta ni token). Corre wrangler con
+   `WRANGLER_SEND_METRICS=false` (sin telemetría), salvo que la hayas
+   configurado vos.
 2. Lo construye **sin tus `.env*`** y sin `HERMES_PRIVATE_TOKEN` ni
    `HERMES_REVALIDATE_SECRET` en el entorno, y aborta si encuentra alguno de
    tus secretos en el bundle (OpenNext compila los `.env*` dentro del worker).

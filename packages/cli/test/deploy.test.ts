@@ -285,6 +285,19 @@ describe('hermes deploy', () => {
     expect(t2.err.join('\n')).toContain('se está llamando a sí mismo');
   });
 
+  it('telemetría de wrangler apagada en el build (WRANGLER_SEND_METRICS=false), salvo que la configures vos', async () => {
+    const t = await proyecto();
+    expect(await main(['deploy'], t.ctx)).toBe(0);
+    const wrangler = (x: typeof t) => x.procesos.filter((p) => p.args.includes('opennextjs-cloudflare') || p.args.includes('--dry-run'));
+    expect(wrangler(t)).toHaveLength(2);
+    for (const p of wrangler(t)) expect(p.env.WRANGLER_SEND_METRICS).toBe('false');
+    // La tuya (del entorno o del .env) se respeta.
+    const t2 = await proyecto();
+    t2.ctx.env = { ...t2.ctx.env, WRANGLER_SEND_METRICS: 'true' };
+    expect(await main(['deploy'], t2.ctx)).toBe(0);
+    for (const p of wrangler(t2)) expect(p.env.WRANGLER_SEND_METRICS).toBe('true');
+  });
+
   it('starter (scripts "deploy": "hermes deploy", "build": "next build"): deploya', async () => {
     const t = await proyecto();
     await writeFile(

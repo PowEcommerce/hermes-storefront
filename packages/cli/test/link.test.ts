@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { main } from '../src/main';
 import { CredentialsStore } from '../src/credentials';
 import { SESION, apiFalsa, ctxDePrueba } from './helpers';
+import type { ProyectoDeMarca, ProyectosDeMarca } from '../src/api';
 
 interface T {
   id: number;
@@ -18,7 +19,7 @@ interface T {
 }
 
 /** La API de la CLI en memoria (lo mínimo de /api/cli/**). */
-function apiDeMarcas(opts: { acotada?: boolean } = {}) {
+function apiDeMarcas(opts: { acotada?: boolean; proyectos?: ProyectosDeMarca } = {}) {
   const tokens: T[] = [];
   const nuevo = (name: string, kind: 'public' | 'private', ajeno = false, purpose: T['purpose'] = null) => {
     const id = tokens.length + 1;
@@ -49,6 +50,8 @@ function apiDeMarcas(opts: { acotada?: boolean } = {}) {
               ],
         },
       };
+    // Sin `proyectos`: una API vieja (404 en /projects).
+    if (opts.proyectos && /^\/api\/cli\/tenants\/[^/]+\/projects$/.test(c.path)) return { body: opts.proyectos };
     const m = /^\/api\/cli\/tenants\/([^/]+)\/(link|tokens|dev-tokens\/revoke)(?:\/(\d+))?$/.exec(c.path);
     if (!m) return undefined;
     const [, tenant, que, id] = m;
@@ -128,9 +131,9 @@ function apiDeMarcas(opts: { acotada?: boolean } = {}) {
 }
 
 async function logueado(
-  opts: { respuestas?: string[]; interactive?: boolean; acotada?: boolean } = {},
+  opts: { respuestas?: string[]; interactive?: boolean; acotada?: boolean; proyectos?: ProyectosDeMarca } = {},
 ) {
-  const api = apiDeMarcas({ acotada: opts.acotada });
+  const api = apiDeMarcas({ acotada: opts.acotada, proyectos: opts.proyectos });
   const t = await ctxDePrueba(api.fetch, opts);
   await new CredentialsStore(t.configDir).guardar('https://api.pow.la', SESION);
   const leer = (f: string) => readFile(join(t.cwd, f), 'utf8');
@@ -225,6 +228,156 @@ describe('hermes link', () => {
     expect(await main(['link', '--tenant', 'mimarca', '--name', 'demo'], t.ctx)).toBe(0);
     expect(t.out.join('\n')).not.toContain('Ya hay tokens vigentes');
     expect(api.tokens[0].revoked_at).toBeNull();
+  });
+});
+
+const MI_TIENDA: ProyectoDeMarca = {
+  name: 'mi-tienda',
+  production_url: 'https://mi-tienda-abc--mimarca.hermescdn.app',
+  last_deploy_at: '2026-10-20T10:00:00.000Z',
+  has_hosting: true,
+};
+const OUTLET: ProyectoDeMarca = {
+  name: 'outlet',
+  production_url: null,
+  last_deploy_at: '2026-10-01T10:00:00.000Z',
+  has_hosting: true,
+};
+/** Un proyecto que sólo tiene tokens de desarrollo (se linkeó y nunca se deployó). */
+const PRUEBA: ProyectoDeMarca = { name: 'prueba', production_url: null, last_deploy_at: null, has_hosting: false };
+const lista = (projects: ProyectoDeMarca[], max_projects: number | null = 1): ProyectosDeMarca => ({
+  projects,
+  max_projects,
+  hosting_enabled: max_projects !== null,
+});
+const linkDe = (api: { llamadas: Array<{ path: string; body: any }> }) =>
+  api.llamadas.filter((c) => c.path.endsWith('/link')).map((c) => c.body.project_name);
+
+describe('hermes link: el proyecto de la marca', () => {
+  it('1 proyecto: lo usa sin preguntar el nombre y explica cómo se trabaja en equipo', async () => {
+    const { api, t, leer } = await logueado({ interactive: true, proyectos: lista([MI_TIENDA, PRUEBA]) });
+    expect(await main(['link', '--tenant', 'mimarca'], t.ctx)).toBe(0);
+    expect(linkDe(api)).toEqual(['mi-tienda']);
+    expect(t.out.join('\n')).not.toContain('Nombre del proyecto');
+    expect(t.out.join('\n')).toContain(
+      'Linkeado al proyecto «mi-tienda» de mimarca (es el proyecto de la tienda; para trabajar en equipo, cada uno usa su branch con `hermes deploy --preview`)',
+    );
+    expect(t.out.join('\n')).toContain('tu branch → `hermes deploy --preview`');
+    expect(t.out.join('\n')).toContain('producción → `main` desde CI con `hermes deploy-token`');
+    expect(JSON.parse(await leer('.hermes/project.json'))).toMatchObject({ project_name: 'mi-tienda' });
+    expect(api.llamadas.some((c) => c.path === '/api/cli/tenants/mimarca/projects')).toBe(true);
+  });
+
+  it('varios: lista con URL y último deploy; «Crear un proyecto nuevo» si el plan tiene lugar', async () => {
+    const { api, t } = await logueado({ interactive: true, respuestas: ['2'], proyectos: lista([MI_TIENDA, OUTLET], 3) });
+    expect(await main(['link', '--tenant', 'mimarca'], t.ctx)).toBe(0);
+    const out = t.out.join('\n');
+    expect(out).toContain('1) mi-tienda (https://mi-tienda-abc--mimarca.hermescdn.app, último deploy 2026-10-20)');
+    expect(out).toContain('2) outlet (sin producción activa, último deploy 2026-10-01)');
+    expect(out).toContain('3) Crear un proyecto nuevo');
+    expect(linkDe(api)).toEqual(['outlet']);
+
+    // Crear uno nuevo: pregunta el nombre (default: el del package.json).
+    const { api: api2, t: t2 } = await logueado({
+      interactive: true,
+      respuestas: ['3', ''],
+      proyectos: lista([MI_TIENDA, OUTLET], 3),
+    });
+    await writeFile(join(t2.cwd, 'package.json'), JSON.stringify({ name: 'nueva-tienda' }));
+    expect(await main(['link', '--tenant', 'mimarca'], t2.ctx)).toBe(0);
+    expect(t2.out.join('\n')).toContain('Nombre del proyecto [nueva-tienda]');
+    expect(linkDe(api2)).toEqual(['nueva-tienda']);
+  });
+
+  it('varios con el plan lleno: sin «Crear un proyecto nuevo»; sin terminal pide --name', async () => {
+    const { t } = await logueado({ interactive: true, respuestas: ['1'], proyectos: lista([MI_TIENDA, OUTLET], 2) });
+    expect(await main(['link', '--tenant', 'mimarca'], t.ctx)).toBe(0);
+    expect(t.out.join('\n')).toContain('2) outlet');
+    expect(t.out.join('\n')).not.toContain('Crear un proyecto nuevo');
+
+    const { api, t: t2 } = await logueado({ proyectos: lista([MI_TIENDA, OUTLET], 2) });
+    expect(await main(['link', '--tenant', 'mimarca'], t2.ctx)).toBe(1);
+    expect(t2.err.join('\n')).toContain('mimarca tiene varios proyectos (mi-tienda, outlet)');
+    expect(linkDe(api)).toEqual([]);
+  });
+
+  it('ninguno: pregunta el nombre (default: la carpeta / package.json) y lo crea, como antes', async () => {
+    const { api, t } = await logueado({ interactive: true, respuestas: [''], proyectos: lista([], 1) });
+    await writeFile(join(t.cwd, 'package.json'), JSON.stringify({ name: '@agencia/tienda-yag' }));
+    expect(await main(['link', '--tenant', 'mimarca'], t.ctx)).toBe(0);
+    expect(t.out.join('\n')).toContain('Nombre del proyecto [tienda-yag]');
+    expect(linkDe(api)).toEqual(['tienda-yag']);
+    expect(t.out.join('\n')).not.toContain('es el proyecto de la tienda');
+  });
+
+  it('sin hosting: los proyectos que tienen tokens cuentan (1 → ése, sin preguntar)', async () => {
+    const { api, t } = await logueado({ interactive: true, proyectos: lista([PRUEBA], null) });
+    expect(await main(['link', '--tenant', 'mimarca'], t.ctx)).toBe(0);
+    expect(linkDe(api)).toEqual(['prueba']);
+  });
+
+  it('--name inexistente con el plan lleno: falla en el link (no en el deploy) y sugiere el que existe', async () => {
+    const { api, t } = await logueado({ proyectos: lista([MI_TIENDA, PRUEBA], 1) });
+    expect(await main(['link', '--tenant', 'mimarca', '--name', 'Prueba'], t.ctx)).toBe(1);
+    expect(t.err.join('\n')).toContain(
+      'El plan de mimarca permite 1 proyecto y ya existe «mi-tienda»: «prueba» no se podría deployar. Usá ese: `hermes link --name mi-tienda`.',
+    );
+    expect(linkDe(api)).toEqual([]);
+    // El existente por --name anda (y un nombre equivalente también).
+    expect(await main(['link', '--tenant', 'mimarca', '--name', 'Mi Tienda'], t.ctx)).toBe(0);
+    expect(linkDe(api)).toEqual(['Mi Tienda']);
+    // Con lugar en el plan, --name crea otro.
+    const { api: api2, t: t2 } = await logueado({ proyectos: lista([MI_TIENDA], 2) });
+    expect(await main(['link', '--tenant', 'mimarca', '--name', 'outlet'], t2.ctx)).toBe(0);
+    expect(linkDe(api2)).toEqual(['outlet']);
+  });
+
+  it('project.json apunta a un proyecto que la marca no tiene: avisa y ofrece cambiarlo', async () => {
+    const { api, t, leer } = await logueado({ interactive: true, respuestas: ['s'], proyectos: lista([MI_TIENDA, PRUEBA], 1) });
+    await mkdir(join(t.cwd, '.hermes'), { recursive: true });
+    await writeFile(
+      join(t.cwd, '.hermes', 'project.json'),
+      JSON.stringify({ tenant: 'mimarca', project_name: 'prueba', api: 'https://api.pow.la', linked_at: 'x' }),
+    );
+    expect(await main(['link'], t.ctx)).toBe(0);
+    expect(t.err.join('\n')).toContain(
+      '⚠ Esta carpeta está linkeada al proyecto «prueba», pero mimarca no lo tiene: el proyecto de la tienda es «mi-tienda». El plan permite 1 y ya están en uso',
+    );
+    expect(t.out.join('\n')).toContain('¿Cambiarlo a «mi-tienda»? [S/n]');
+    expect(linkDe(api)).toEqual(['mi-tienda']);
+    expect(JSON.parse(await leer('.hermes/project.json'))).toMatchObject({ project_name: 'mi-tienda' });
+
+    // Si no lo cambia y el plan está lleno: error claro (el deploy fallaría).
+    const { api: api2, t: t2 } = await logueado({ interactive: true, respuestas: ['n'], proyectos: lista([MI_TIENDA], 1) });
+    await mkdir(join(t2.cwd, '.hermes'), { recursive: true });
+    await writeFile(
+      join(t2.cwd, '.hermes', 'project.json'),
+      JSON.stringify({ tenant: 'mimarca', project_name: 'prueba', api: 'https://api.pow.la', linked_at: 'x' }),
+    );
+    expect(await main(['link'], t2.ctx)).toBe(1);
+    expect(t2.err.join('\n')).toContain('Usá ese: `hermes link --name mi-tienda`');
+    expect(linkDe(api2)).toEqual([]);
+  });
+
+  it('project.json apunta al proyecto que existe: re-link sin preguntar', async () => {
+    const { api, t } = await logueado({ interactive: true, proyectos: lista([MI_TIENDA], 1) });
+    await mkdir(join(t.cwd, '.hermes'), { recursive: true });
+    await writeFile(
+      join(t.cwd, '.hermes', 'project.json'),
+      JSON.stringify({ tenant: 'mimarca', project_name: 'mi-tienda', api: 'https://api.pow.la', linked_at: 'x' }),
+    );
+    expect(await main(['link'], t.ctx)).toBe(0);
+    expect(t.out.join('\n')).not.toMatch(/Nombre del proyecto|\[S\/n\]|Elegí/);
+    expect(t.err.join('\n')).not.toContain('⚠');
+    expect(linkDe(api)).toEqual(['mi-tienda']);
+  });
+
+  it('API vieja (sin /projects → 404): pregunta el nombre como antes', async () => {
+    const { api, t } = await logueado({ interactive: true, respuestas: ['demo'] });
+    expect(await main(['link', '--tenant', 'mimarca'], t.ctx)).toBe(0);
+    expect(api.llamadas.some((c) => c.path.endsWith('/projects'))).toBe(true);
+    expect(t.out.join('\n')).toContain('Nombre del proyecto [');
+    expect(linkDe(api)).toEqual(['demo']);
   });
 });
 

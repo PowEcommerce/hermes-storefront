@@ -107,7 +107,23 @@ linkear.
 Linkea la carpeta actual a una marca:
 
 1. Elegís la marca (sólo aparecen aquellas en las que sos admin), o `--tenant`.
-2. Nombre del proyecto: `--name`, o el `name` del `package.json`, o la carpeta.
+2. El proyecto. **Una tienda tiene un proyecto** (como en Hydrogen): el equipo
+   trabaja sobre él con branches y previews, no con un proyecto por persona.
+   - Si la marca tiene **un** proyecto, se usa ése sin preguntar
+     (`Linkeado al proyecto «mi-tienda» de mi-marca …`).
+   - Si tiene **varios**, elegís de la lista (con la URL de producción y la
+     fecha del último deploy) o «Crear un proyecto nuevo» (no aparece si el
+     plan ya llegó a su tope de proyectos).
+   - Si no tiene **ninguno**, te pregunta el nombre (default: el `name` del
+     `package.json` o la carpeta) y lo crea.
+   - `--name` fuerza un proyecto. Si no existe y el plan ya está lleno, falla
+     en el link (`El plan de mi-marca permite 1 proyecto y ya existe
+     «mi-tienda». Usá ese: hermes link --name mi-tienda`), no recién en el
+     deploy.
+   - Si `.hermes/project.json` apunta a un proyecto que la marca no tiene, te
+     avisa y te ofrece cambiarlo al que existe.
+   - Con una API anterior (sin la lista de proyectos), pregunta el nombre como
+     antes.
 3. La API crea **tus tokens de desarrollo**: un **público** `pst_`
    (`<proyecto> · dev · <tu email>`, con `localhost` para CORS) y uno
    **privado** `psk_` (`… (servidor)`, scopes `checkout_sessions:read` +
@@ -120,7 +136,7 @@ Linkea la carpeta actual a una marca:
 | Opción | |
 |---|---|
 | `--tenant <marca>` | sin elegir de la lista |
-| `--name <nombre>` | nombre del proyecto (1–60 caracteres) |
+| `--name <nombre>` | forzar un proyecto (1–60 caracteres); ver arriba qué pasa si el plan está lleno |
 | `--domain <host>` | dominio del storefront, repetible: a dónde puede volver el checkout (`return_url`/`cancel_url`) y desde dónde se acepta CORS. |
 | `--no-private` | sólo el token público |
 | `--revalidate-url <url>` | crea el webhook `storefront/revalidate` y escribe `HERMES_REVALIDATE_SECRET` |
@@ -135,6 +151,15 @@ ese proyecto, se rotan (una copia por persona y proyecto: tu otra copia
 necesita `hermes env pull --rotate`). Los de otros developers, los de la
 tienda y los de Pow no se tocan nunca. Topes: 20 proyectos activos por marca
 por cuenta, 50 por marca.
+
+Al terminar, el link te recuerda cómo se trabaja en equipo:
+
+```
+  En equipo: tu branch → `hermes deploy --preview` (cada uno con su URL de preview).
+             producción → `main` desde CI con `hermes deploy-token` (ver la guía).
+```
+
+Ver [Trabajar en equipo](https://github.com/PowEcommerce/hermes-storefront/blob/main/docs/guia-agencias.md#trabajar-en-equipo).
 
 ### `hermes env pull [--rotate]`
 

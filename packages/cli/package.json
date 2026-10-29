@@ -1,6 +1,6 @@
 {
   "name": "@hermesecommerce/cli",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "CLI de Hermes para agencias: login con tu usuario del backoffice, link de un proyecto a una marca (tokens de storefront en tu .env), deploy en el hosting de Hermes y dominios.",
   "license": "MIT",
   "repository": {

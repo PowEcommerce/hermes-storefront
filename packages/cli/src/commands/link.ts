@@ -1,4 +1,12 @@
-import { ApiError, CUENTA_NO_AUTORIZADA, HermesApi, LinkResult, Me } from '../api';
+import {
+  ApiError,
+  CUENTA_NO_AUTORIZADA,
+  HermesApi,
+  LinkResult,
+  Me,
+  ProyectoDeMarca,
+  ProyectosDeMarca,
+} from '../api';
 import { Parsed, str } from '../args';
 import { Ctx } from '../context';
 import {
@@ -15,6 +23,7 @@ import {
   guardarProyecto,
   leerProyecto,
   nombrePorDefecto,
+  slugDeProyecto,
 } from '../project';
 import { confirmar, conSesion, elegir } from './common';
 
@@ -165,19 +174,132 @@ async function linkearProyecto(
   tenant: string,
   mismoApi: Awaited<ReturnType<typeof leerProyecto>>,
 ): Promise<void> {
+  const previo = mismoApi?.tenant === tenant ? mismoApi : null;
+  const lista = await cliente.proyectos(tenant);
+  const elegido = lista
+    ? await elegirProyecto(ctx, tenant, lista, str(flags.name), previo?.project_name)
+    : { nombre: await nombreAPreguntar(ctx, str(flags.name), previo?.project_name), unico: false };
+  await linkear(ctx, cliente, api, flags, tenant, elegido.nombre);
+  if (elegido.unico)
+    ctx.out(
+      `  Linkeado al proyecto «${elegido.nombre}» de ${tenant} (es el proyecto de la tienda; para trabajar en equipo, cada uno usa su branch con \`hermes deploy --preview\`).`,
+    );
+  ctx.out('');
+  ctx.out('  En equipo: tu branch → `hermes deploy --preview` (cada uno con su URL de preview).');
+  ctx.out(`             producción → \`main\` desde CI con \`hermes deploy-token\` (ver la guía: ${GUIA_EQUIPO}).`);
+}
 
-  let proyecto = str(flags.name);
-  if (!proyecto) {
-    const sugerido =
-      mismoApi?.tenant === tenant
-        ? mismoApi.project_name
-        : await nombrePorDefecto(ctx.cwd);
-    const r = ctx.interactive
-      ? await ctx.ask(`Nombre del proyecto [${sugerido}]: `)
-      : '';
-    proyecto = r || sugerido;
+const GUIA_EQUIPO = 'https://github.com/PowEcommerce/hermes-storefront/blob/main/docs/guia-agencias.md#trabajar-en-equipo';
+
+/** Lo de antes (API sin la lista de proyectos): `--name`, o preguntar. */
+async function nombreAPreguntar(
+  ctx: Ctx,
+  flag: string | undefined,
+  previo: string | undefined,
+): Promise<string> {
+  if (flag) return flag;
+  const sugerido = previo ?? (await nombrePorDefecto(ctx.cwd));
+  const r = ctx.interactive ? await ctx.ask(`Nombre del proyecto [${sugerido}]: `) : '';
+  return r.trim() || sugerido;
+}
+
+const etiquetaDeProyecto = (p: ProyectoDeMarca) => {
+  const extra = [
+    p.production_url ?? (p.has_hosting ? 'sin producción activa' : 'sin deploys en el hosting'),
+    p.last_deploy_at ? `último deploy ${p.last_deploy_at.slice(0, 10)}` : null,
+  ].filter(Boolean);
+  return `${p.name} (${extra.join(', ')})`;
+};
+
+/**
+ * El proyecto de la marca para este link. Una tienda tiene, por lo general,
+ * UN proyecto: el equipo trabaja sobre él con branches y previews.
+ *
+ *  - Con deploys en el hosting, los proyectos son ésos (los que cuenta el
+ *    plan); los que sólo tienen tokens de desarrollo (un link a un nombre que
+ *    nunca se deployó) no se ofrecen. Sin hosting, los que tienen tokens.
+ *  - 1 → ése, sin preguntar. Varios → elegir (+ «Crear un proyecto nuevo» si
+ *    el plan tiene lugar). Ninguno → preguntar el nombre, como antes.
+ *  - `--name` fuerza un proyecto; si es nuevo y el plan ya está lleno, falla
+ *    acá y no recién en `hermes deploy`.
+ *  - Si project.json apunta a un proyecto que no es de la marca, avisa y
+ *    ofrece cambiarlo.
+ */
+async function elegirProyecto(
+  ctx: Ctx,
+  tenant: string,
+  lista: ProyectosDeMarca,
+  flag: string | undefined,
+  previo: string | undefined,
+): Promise<{ nombre: string; unico: boolean }> {
+  const conHosting = lista.projects.filter((p) => p.has_hosting);
+  const candidatos = conHosting.length ? conHosting : lista.projects;
+  const lleno = lista.max_projects !== null && conHosting.length >= lista.max_projects;
+  const existe = (nombre: string) => candidatos.find((p) => p.name === slugDeProyecto(nombre));
+  const unico = (nombre: string) => candidatos.length === 1 && candidatos[0].name === slugDeProyecto(nombre);
+  const errorDePlan = (pedido: string) =>
+    new CliError(
+      `El plan de ${tenant} permite ${lista.max_projects} ${lista.max_projects === 1 ? 'proyecto' : 'proyectos'} y ya ${
+        conHosting.length === 1 ? `existe «${conHosting[0].name}»` : `existen ${conHosting.map((p) => `«${p.name}»`).join(', ')}`
+      }: «${slugDeProyecto(pedido)}» no se podría deployar. Usá ${
+        conHosting.length === 1 ? 'ese' : 'uno de esos'
+      }: \`hermes link --name ${conHosting[0].name}\`.`,
+    );
+
+  if (flag) {
+    if (lleno && !conHosting.some((p) => p.name === slugDeProyecto(flag))) throw errorDePlan(flag);
+    return { nombre: flag, unico: unico(flag) };
   }
-  await linkear(ctx, cliente, api, flags, tenant, proyecto);
+
+  if (previo) {
+    if (existe(previo) || !candidatos.length) {
+      if (!existe(previo) && lleno) throw errorDePlan(previo);
+      return { nombre: previo, unico: unico(previo) };
+    }
+    // project.json apunta a un proyecto que la marca no tiene (p. ej. un
+    // nombre que se linkeó y nunca se deployó).
+    ctx.err(
+      `⚠ Esta carpeta está linkeada al proyecto «${previo}», pero ${tenant} no lo tiene: ${
+        candidatos.length === 1
+          ? `el proyecto de la tienda es «${candidatos[0].name}»`
+          : `sus proyectos son ${candidatos.map((p) => `«${p.name}»`).join(', ')}`
+      }.${lleno ? ` El plan permite ${lista.max_projects} y ya están en uso: «${slugDeProyecto(previo)}» no se podría deployar.` : ''}`,
+    );
+    if (candidatos.length === 1) {
+      if (await confirmar(ctx, `¿Cambiarlo a «${candidatos[0].name}»?`, true))
+        return { nombre: candidatos[0].name, unico: true };
+      if (lleno) throw errorDePlan(previo);
+      return { nombre: previo, unico: false };
+    }
+    if (!ctx.interactive) {
+      if (lleno) throw errorDePlan(previo);
+      return { nombre: previo, unico: false };
+    }
+    const seguir = { name: previo, production_url: null, last_deploy_at: null, has_hosting: false };
+    const opciones: Array<ProyectoDeMarca | null> = [...candidatos, ...(lleno ? [] : [seguir])];
+    const r = await elegir(ctx, `¿Qué proyecto de ${tenant} querés usar?`, opciones, (p) =>
+      p === seguir ? `Seguir con «${previo}» (proyecto nuevo)` : etiquetaDeProyecto(p!),
+    );
+    return { nombre: r!.name, unico: false };
+  }
+
+  if (candidatos.length === 1) return { nombre: candidatos[0].name, unico: true };
+  if (!candidatos.length) {
+    const nombre = await nombreAPreguntar(ctx, undefined, undefined);
+    if (lleno) throw errorDePlan(nombre);
+    return { nombre, unico: false };
+  }
+  if (!ctx.interactive)
+    throw new CliError(
+      `${tenant} tiene varios proyectos (${candidatos.map((p) => p.name).join(', ')}): elegí uno con \`hermes link --name <proyecto>\`.`,
+    );
+  const nuevo = null;
+  const opciones: Array<ProyectoDeMarca | null> = [...candidatos, ...(lleno ? [] : [nuevo])];
+  const r = await elegir(ctx, `¿Qué proyecto de ${tenant} querés usar?`, opciones, (p) =>
+    p === nuevo ? 'Crear un proyecto nuevo' : etiquetaDeProyecto(p),
+  );
+  if (r) return { nombre: r.name, unico: false };
+  return { nombre: await nombreAPreguntar(ctx, undefined, undefined), unico: false };
 }
 
 export async function unlink(ctx: Ctx, { flags }: Parsed): Promise<void> {

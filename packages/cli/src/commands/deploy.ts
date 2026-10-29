@@ -112,7 +112,8 @@ function envDelBuild(ctx: Ctx, delArchivo: Record<string, string>): Record<strin
   for (const k of SECRETAS) delete env[k];
   // El token de deploy (CI) tampoco: no es del build.
   delete env.HERMES_DEPLOY_TOKEN;
-  env.WRANGLER_SEND_METRICS = 'false';
+  // Sin telemetría de wrangler, salvo que la hayas configurado vos.
+  if (!env.WRANGLER_SEND_METRICS) env.WRANGLER_SEND_METRICS = 'false';
   env.NODE_ENV = 'production';
   return env;
 }

@@ -53,3 +53,18 @@ export async function nombrePorDefecto(cwd: string): Promise<string> {
   }
   return basename(cwd).slice(0, 60) || 'storefront';
 }
+
+/**
+ * Como el slug de proyecto de la API (`Tienda Nueva!` → `tienda-nueva`): el
+ * nombre con el que el hosting y los tokens guardan el proyecto.
+ */
+export function slugDeProyecto(v: string): string {
+  return v
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/g, '') || 'storefront';
+}
