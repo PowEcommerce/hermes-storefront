@@ -291,7 +291,7 @@ jobs:
 
       - name: Es el mismo tarball que revisó build
         env:
-          TGZ: tarball/${{ needs.build.outputs.tgz }}
+          TGZ: ./tarball/${{ needs.build.outputs.tgz }}
           SHA256: ${{ needs.build.outputs.sha256 }}
         run: |
           set -euo pipefail
@@ -303,7 +303,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           DRY_RUN: ${{ needs.build.outputs.dry_run }}
-          TGZ: tarball/${{ needs.build.outputs.tgz }}
+          TGZ: ./tarball/${{ needs.build.outputs.tgz }}
         run: |
           set -euo pipefail
           if [ "$DRY_RUN" = "true" ]; then
