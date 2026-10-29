@@ -58,8 +58,10 @@ y `.env` se agrega a tu `.gitignore` si no estaba.
 
 Crea una tienda nueva desde el starter: delega en
 `@hermesecommerce/create-store` de la misma major que la CLI
-(`npx --yes @hermesecommerce/create-store@^0`) con las mismas opciones (`--no-install`, `--pm <npm|pnpm|yarn|bun>`,
-`--link`/`--no-link`, `--help`). Para probar un generador sin publicar:
+(`npx --yes @hermesecommerce/create-store@^0`) con las mismas opciones (`--template demo|skeleton`,
+`--no-install`, `--pm <npm|pnpm|yarn|bun>`, `--link`/`--no-link`, `--help`).
+`--template demo` (default) crea la tienda completa de ejemplo; `--template
+skeleton`, lo mínimo para arrancar tu propio diseño. Para probar un generador sin publicar:
 `HERMES_CREATE_STORE_BIN=…/create/dist/index.js hermes create x`.
 
 ### CLI global y CLI del proyecto

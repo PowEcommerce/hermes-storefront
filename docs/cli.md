@@ -10,6 +10,7 @@ agencia, en la [guía para agencias](./guia-agencias.md).
 ```bash
 npm install -g @hermesecommerce/cli    # 1. una sola vez por máquina (como `@shopify/cli`)
 hermes create mi-marca                 # 2. = npm create @hermesecommerce/store mi-marca
+                                       #    (--template skeleton: lo mínimo; default demo, la tienda de ejemplo)
 cd mi-marca                            # 3.
 hermes login                           # 4. tu usuario del backoffice (una vez por máquina)
 hermes link                            # 5. elegís la marca → su proyecto + tokens HERMES_* en .env

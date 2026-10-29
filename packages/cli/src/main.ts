@@ -34,6 +34,9 @@ Uso: hermes <comando> [opciones]
   create [carpeta]      Crear una tienda nueva desde el starter (= npm create
                         @hermesecommerce/store; mismas opciones: --no-install,
                         --pm <gestor>, --link/--no-link; \`hermes create --help\`)
+      --template demo|skeleton
+                        demo (default): la tienda completa de ejemplo;
+                        skeleton: lo mínimo para arrancar tu diseño
   login                 Entrar con tu usuario del backoffice (abre el navegador)
       --api <url>       API (default https://api.pow.la)
       --no-browser      No abrir el navegador, sólo mostrar el link
