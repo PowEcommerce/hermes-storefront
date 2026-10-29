@@ -153,7 +153,7 @@ export function crearReferencia(doc, { resolver }) {
 
     const params = op.parameters ?? [];
     if (params.length) {
-      spec.push(['titulo3', 'Parámetros']);
+      spec.push(['parrafo', '**Parámetros**']);
       spec.push([
         'tabla',
         [
@@ -168,7 +168,7 @@ export function crearReferencia(doc, { resolver }) {
 
     const cuerpo = op.requestBody?.content?.['application/json']?.schema;
     if (cuerpo) {
-      spec.push(['titulo3', `Cuerpo${op.requestBody.required ? '' : ' (opcional)'}`]);
+      spec.push(['parrafo', `**Cuerpo${op.requestBody.required ? '' : ' (opcional)'}**`]);
       const filas = campos(cuerpo);
       if (filas.length) spec.push(['tabla', [['Campo', 'Tipo', 'Requerido', 'Descripción'], ...filas]]);
       const ej = op.requestBody.content['application/json'].example ?? ejemplo(cuerpo);
@@ -177,7 +177,7 @@ export function crearReferencia(doc, { resolver }) {
 
     const respuestas = Object.entries(op.responses ?? {});
     if (respuestas.length) {
-      spec.push(['titulo3', 'Respuestas']);
+      spec.push(['parrafo', '**Respuestas**']);
       spec.push([
         'tabla',
         [

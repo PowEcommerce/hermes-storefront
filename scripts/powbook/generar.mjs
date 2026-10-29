@@ -289,7 +289,7 @@ agregar(P.sdk, mdEntero('packages/storefront/README.md', P.sdk), 'packages/store
   ];
   const lenguaje = (a) => (a.endsWith('.tsx') ? 'tsx' : a.endsWith('.ts') ? 'ts' : 'bash');
   const spec = [
-    ['parrafo', `Una tienda mínima con el SDK: listado de productos, carrito, checkout hosteado, webhooks firmados y purga de caché por tags. El código completo está en [\`${EJEMPLO}\`](${GITHUB}/tree/main/${EJEMPLO}).`],
+    ['parrafo', `Una tienda mínima con el SDK: listado de productos, carrito, checkout hosteado, webhooks firmados y purga de caché por tags. El código completo está en [${EJEMPLO}](${GITHUB}/tree/main/${EJEMPLO}).`],
   ];
   for (const a of archivos) {
     spec.push(['titulo3', `\`${a}\``]);
