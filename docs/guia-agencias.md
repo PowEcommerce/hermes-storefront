@@ -100,7 +100,8 @@ hermes rollback 11                  # volver a la versión del deploy #11
   también crea y mantiene el webhook de revalidación con su secreto. La CLI
   construye con los `.env*` apartados (OpenNext los compilaría) y aborta si
   encuentra tus secretos en el worker. Las demás variables del `.env` llegan
-  al build (p. ej. `NEXT_PUBLIC_*`), no al runtime. El dominio del deploy se
+  al build, no al runtime: para el runtime (y para que CI no dependa de un
+  `.env`) usá [`hermes env`](#variables-de-entorno). El dominio del deploy se
   suma solo a los dominios del token público de la tienda (checkout y CORS).
 - **Previews**: una por branch, con URL propia; conviven con producción.
   El plan fija cuántas previews activas y proyectos podés tener (una tienda
@@ -109,6 +110,52 @@ hermes rollback 11                  # volver a la versión del deploy #11
 - **Rollback**: vuelve a subir la versión guardada de ese deploy (con los
   tokens vigentes de la tienda). Se puede volver a cualquier deploy que haya
   estado en el aire.
+
+### Variables de entorno
+
+Tus claves (analytics, un CMS…) viven en Hermes, por proyecto y entorno, y
+llegan al worker en cada deploy (como en Oxygen o Vercel):
+
+```bash
+hermes env set NEXT_PUBLIC_GA_ID=G-ABC123            # normal (se ve en claro)
+hermes env set CMS_TOKEN="$(cat cms-token.txt)" --secret   # secreta: nunca vuelve en claro
+hermes env set CMS_URL=https://cms-pruebas.x.com --environment preview
+hermes env list                                      # las secretas, enmascaradas
+hermes env rm CMS_URL --environment preview
+hermes env pull                                      # baja las NO secretas a tu .env (para hermes dev)
+hermes deploy                                        # recién acá se aplican
+```
+
+- **No redeploya solo**: un cambio se aplica en el próximo `hermes deploy`
+  (en el server, con `process.env.CMS_TOKEN` en Next).
+- Las `NEXT_PUBLIC_*` se compilan en el build: `hermes deploy` las pone en el
+  entorno del build (también en CI con `HERMES_DEPLOY_TOKEN`). Por eso no
+  pueden ser secretas. Las secretas nunca entran al build, aunque estén en tu
+  `.env`.
+- Las de `preview` valen para todas las branches. Hasta 50 por proyecto y
+  entorno, 5 KB por valor; `HERMES_*`, `CF_*`, `CLOUDFLARE_*` y `ASSETS` son
+  reservadas.
+- Para un secreto, mejor `"$(cat archivo)"` que tipearlo (queda en el
+  historial de tu shell).
+
+### Logs
+
+```bash
+hermes logs                          # en vivo (hasta 15 minutos, Ctrl+C para salir)
+#    15:02:11  GET    200  /productos/remera  84 ms
+#    15:02:11      │ log   precio sin stock: remera-azul
+#  ✘ 15:02:14  POST   500  /api/newsletter  210 ms  (exception)
+#  ✘ 15:02:14      │ error TypeError: fetch failed
+hermes logs --status error --since 1h --no-follow   # los errores de la última hora
+hermes logs --preview --search checkout             # la preview de tu branch
+hermes logs --json | jq .                           # un evento JSON por línea
+```
+
+Pedidos, `console.log`/`console.error` y excepciones de la tienda publicada
+(hasta 7 días atrás). La CLI no habla con Cloudflare: Hermes consulta sólo
+los scripts de tu marca y tapa los headers sensibles (`cookie`,
+`authorization`, `x-storefront-private-token`) y los tokens que aparezcan en
+tus mensajes. Pide el mismo rol que deployar.
 
 ### Tu dominio
 

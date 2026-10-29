@@ -357,6 +357,9 @@ export async function deploy(ctx: Ctx, { flags }: Parsed): Promise<void> {
 
   const preview = flags.preview === true;
   const branch = preview ? await branchDePreview(ctx, flags) : undefined;
+  // Valores locales de las variables que en Hermes son secretas: no pueden
+  // quedar compiladas (se juntan al pedir el entorno del build).
+  const secretasLocales: string[] = [];
   const environment = preview ? 'preview' : 'production';
   const git = await gitDelProyecto(ctx);
   await avisarSiPisa(ctx, flags, cliente, p, branch, git);
@@ -368,10 +371,24 @@ export async function deploy(ctx: Ctx, { flags }: Parsed): Promise<void> {
     // La marca, la API y el pst_ de la TIENDA (runtime) para el build: el
     // prerender y lo que el build compile usan el token del proyecto, no el
     // tuyo (y en CI no hace falta un .env).
-    const { env: deHermes } = await cliente.entornoDeBuild(p.tenant, { project: p.project_name, environment });
+    const { env: deHermes, vars = {}, secret_names = [] } = await cliente.entornoDeBuild(p.tenant, {
+      project: p.project_name,
+      environment,
+    });
     const delArchivo = todasLasVariables(envTexto);
+    const entorno = envDelBuild(ctx, delArchivo);
+    // Las variables del proyecto (`hermes env`): las secretas NUNCA entran al
+    // build (aunque estén en tu .env o en tu shell: van sólo como secretos del
+    // worker); las normales (p. ej. NEXT_PUBLIC_*) pisan las locales.
+    for (const k of secret_names) {
+      const local = entorno[k];
+      if (local) secretasLocales.push(local);
+      delete entorno[k];
+    }
+    const propias = Object.keys(vars);
+    if (propias.length) ctx.out(`  Variables del proyecto en el build (${environment}): ${propias.join(', ')}`);
     await sinEnvEnElBuild(ctx, archivo, () =>
-      build(ctx, pm, conCadena({ ...envDelBuild(ctx, delArchivo), ...deHermes }, 'deploy')),
+      build(ctx, pm, conCadena({ ...entorno, ...vars, ...deHermes }, 'deploy')),
     );
   }
   const cfg = await leerConfigWrangler(ctx.cwd);
@@ -384,11 +401,11 @@ export async function deploy(ctx: Ctx, { flags }: Parsed): Promise<void> {
   // (un chunk del cliente en _next/static también es público).
   const filtrados = await secretosEnElCodigo(
     [...worker.modulos.map((m) => m.path), ...assets.porHash.values()],
-    SECRETAS.map((k) => hermes[k]).filter((v): v is string => Boolean(v)),
+    [...SECRETAS.map((k) => hermes[k]), ...secretasLocales].filter((v): v is string => Boolean(v)),
   );
   if (filtrados.length)
     throw new CliError(
-      `El build tiene tus secretos (HERMES_PRIVATE_TOKEN / HERMES_REVALIDATE_SECRET) compilados en ${filtrados.map((f) => relative(ctx.cwd, f)).join(', ')}. No subí nada. ` +
+      `El build tiene tus secretos (HERMES_PRIVATE_TOKEN / HERMES_REVALIDATE_SECRET o una variable secreta del proyecto) compilados en ${filtrados.map((f) => relative(ctx.cwd, f)).join(', ')}. No subí nada. ` +
         'Revisá que tu código no los importe en el bundle ni en el código del cliente (o un .env fuera de la raíz), y como ya estuvieron en disco en el build, rotalos: `hermes env pull --rotate`.',
     );
   const revalidatePath = await rutaDeRevalidacion(ctx.cwd);

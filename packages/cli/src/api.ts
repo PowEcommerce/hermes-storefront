@@ -237,6 +237,54 @@ export interface Dominio {
   apex_records?: Array<{ type: string; name: string; value: string }> | null;
 }
 
+/** Un evento de `hermes logs` (GET /cli/tenants/:t/logs), ya filtrado por la API. */
+export interface EventoDeLog {
+  timestamp: string;
+  request_id: string | null;
+  /** `request`: el pedido; `log`: un console.* de tu código. */
+  type: 'request' | 'log';
+  level: string | null;
+  method: string | null;
+  path: string | null;
+  status: number | null;
+  outcome: string | null;
+  message: string | null;
+  error: string | null;
+  duration_ms: number | null;
+  request_headers?: Record<string, string>;
+}
+
+export interface Logs {
+  project: string;
+  environment: 'production' | 'preview';
+  branch: string | null;
+  from: string;
+  to: string;
+  events: EventoDeLog[];
+  /** Hubo más eventos de los que entran en un pedido. */
+  truncated: boolean;
+}
+
+/** Una variable de entorno del proyecto (`hermes env`). Las secretas, sin valor. */
+export interface VariableDeEntorno {
+  name: string;
+  environment: 'production' | 'preview';
+  is_secret: boolean;
+  /** null si es secreta (nunca vuelve en claro). */
+  value: string | null;
+  updated_by: string | null;
+  updated_at: string | null;
+}
+
+/** Lo que da `POST …/build-env`. `vars`/`secret_names`: API vieja, no vienen. */
+export interface EntornoDeBuild {
+  env: Record<string, string>;
+  /** Las variables NO secretas del proyecto (`hermes env`), para el build. */
+  vars?: Record<string, string>;
+  /** Sólo los nombres de las secretas: se sacan del entorno del build. */
+  secret_names?: string[];
+}
+
 /** Código de la API: el plan de la marca no incluye el hosting. */
 export const HOSTING_NO_HABILITADO = 'hosting_no_habilitado';
 
@@ -248,6 +296,19 @@ export class ApiError extends CliError {
   ) {
     super(mensajeDe(status, body));
   }
+}
+
+/**
+ * ¿Es el 404 de una ruta que la API todavía no tiene (una API vieja)? Nest
+ * responde `{"message": "Cannot GET …", "error": "Not Found"}`.
+ */
+export function esRutaInexistente(e: unknown): boolean {
+  return (
+    e instanceof ApiError &&
+    (e.status === 404 || e.status === 405) &&
+    typeof e.body.message === 'string' &&
+    /^Cannot (GET|PUT|POST|DELETE)/.test(e.body.message)
+  );
 }
 
 /** Código de la API: la marca no se autorizó al aprobar este `hermes login`. */
@@ -501,9 +562,12 @@ export class HermesApi {
     );
   }
 
-  /** Las variables públicas del build: el pst_ de la tienda (runtime). */
+  /**
+   * Las variables públicas del build: el pst_ de la tienda (runtime) y las
+   * NO secretas del proyecto (`hermes env`; de las secretas, sólo el nombre).
+   */
   entornoDeBuild(tenant: string, body: { project: string; environment: 'production' | 'preview' }) {
-    return this.pedir<{ env: Record<string, string> }>(
+    return this.pedir<EntornoDeBuild>(
       'POST',
       `/cli/tenants/${encodeURIComponent(tenant)}/build-env`,
       body,
@@ -541,6 +605,56 @@ export class HermesApi {
     return this.pedir<{ success: boolean }>(
       'DELETE',
       `/cli/tenants/${encodeURIComponent(tenant)}/deploy-tokens/${id}`,
+    );
+  }
+
+  // --------------------------------------------- logs y variables
+
+  /** `hermes logs`: los logs de la tienda publicada (la API habla con Cloudflare). */
+  logs(
+    tenant: string,
+    q: {
+      project: string;
+      environment: 'production' | 'preview';
+      branch?: string;
+      since?: string;
+      status?: string;
+      search?: string;
+      limit?: number;
+    },
+  ) {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '') params.set(k, String(v));
+    return this.pedir<Logs>('GET', `/cli/tenants/${encodeURIComponent(tenant)}/logs?${params.toString()}`);
+  }
+
+  variables(tenant: string, project: string, environment?: 'production' | 'preview') {
+    const params = new URLSearchParams({ project });
+    if (environment) params.set('environment', environment);
+    return this.pedir<{
+      project: string;
+      environment: string | null;
+      env: VariableDeEntorno[];
+      limits?: { max_vars: number; max_value_bytes: number };
+    }>('GET', `/cli/tenants/${encodeURIComponent(tenant)}/env?${params.toString()}`);
+  }
+
+  guardarVariable(
+    tenant: string,
+    body: { project: string; environment: 'production' | 'preview'; name: string; value: string; secret: boolean },
+  ) {
+    return this.pedir<{ success: boolean; created: boolean; var: VariableDeEntorno; message: string }>(
+      'PUT',
+      `/cli/tenants/${encodeURIComponent(tenant)}/env`,
+      body,
+    );
+  }
+
+  borrarVariable(tenant: string, name: string, project: string, environment: 'production' | 'preview') {
+    const params = new URLSearchParams({ project, environment });
+    return this.pedir<{ success: boolean; removed: { name: string; project: string; environment: string } }>(
+      'DELETE',
+      `/cli/tenants/${encodeURIComponent(tenant)}/env/${encodeURIComponent(name)}?${params.toString()}`,
     );
   }
 

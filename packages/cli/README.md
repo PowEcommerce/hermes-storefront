@@ -161,12 +161,41 @@ Al terminar, el link te recuerda cómo se trabaja en equipo:
 
 Ver [Trabajar en equipo](https://github.com/PowEcommerce/hermes-storefront/blob/main/docs/guia-agencias.md#trabajar-en-equipo).
 
-### `hermes env pull [--rotate]`
+### `hermes env pull [--rotate] [--environment production|preview]`
 
 Deja el `.env` al día con el proyecto linkeado. Sin `--rotate` verifica que
 los tokens del `.env` sigan vigentes (y actualiza `HERMES_TENANT`/
 `HERMES_API_URL`); si falta o está revocado alguno, te dice que uses
 `--rotate`, que emite **tus** tokens de desarrollo nuevos (como un re-link).
+Además baja a tu `.env` las variables **no secretas** del proyecto
+(`hermes env set`, de producción o de `--environment preview`) para
+`hermes dev`. Las secretas nunca se bajan: te dice cuáles son para que las
+cargues a mano si las necesitás en local.
+
+### `hermes env list` · `env set NOMBRE=valor [--secret]` · `env rm NOMBRE`
+
+Las variables de entorno propias de la tienda (claves de analytics, de un
+CMS…), por proyecto y entorno (`--environment production|preview`; default
+`production`; las de preview valen para todas las branches). Hermes las
+guarda cifradas y las pone en el worker en cada deploy: las normales como
+texto plano y las `--secret` como secretos.
+
+```bash
+hermes env set NEXT_PUBLIC_GA_ID=G-ABC123
+hermes env set CMS_TOKEN="$(cat cms-token.txt)" --secret
+hermes env list            # las secretas salen enmascaradas (•••••• secreta); --json
+hermes env rm CMS_TOKEN    # --yes sin terminal
+```
+
+- Un cambio **no redeploya**: se aplica en el próximo `hermes deploy`.
+- `hermes deploy` pone las normales en el entorno del build (las
+  `NEXT_PUBLIC_*` se compilan ahí) y saca las secretas aunque estén en tu
+  `.env`; por eso una `NEXT_PUBLIC_*` no puede ser secreta.
+- Nombre `^[A-Z][A-Z0-9_]{0,63}$`; reservadas `HERMES_*`, `CF_*`,
+  `CLOUDFLARE_*` y `ASSETS`; hasta 50 por proyecto y entorno y 5 KB por
+  valor. Una secreta no pasa a normal sin borrarla antes.
+- Piden ser admin de la marca (como deployar). Un `HERMES_DEPLOY_TOKEN` no
+  sirve para `env` (sí para que `hermes deploy` use las variables en CI).
 
 ### `hermes unlink [--revoke]`
 
@@ -274,6 +303,23 @@ anterior (se vuelve a subir ese bundle con los tokens vigentes de la tienda). Si
 `hermes deployments rm [--branch x] [--yes]` borra la preview de una branch
 (la de git por default): libera su URL y deja de contar para el tope de
 previews del plan.
+
+### `hermes logs [--preview [--branch x]] [--status error|ok] [--search texto] [--since 1h] [--no-follow] [--json]`
+
+Los logs de la tienda publicada: los pedidos (hora, método, path, status,
+duración) y debajo sus `console.log` / `console.error` y excepciones (✘ =
+error). Por defecto queda **en vivo**: pide los nuevos cada 3 s hasta 15
+minutos o Ctrl+C. `--since 30s|15m|1h|2d` (o una fecha ISO) muestra también
+los recientes (hasta 7 días); `--no-follow` muestra y sale. `--status error`
+trae el pedido entero si algo falló (5xx, excepción o `console.error`).
+`--json`: un evento JSON por línea.
+
+La CLI nunca habla con Cloudflare: la API de Hermes consulta Workers Logs
+sólo para los scripts de tu marca y tapa los headers sensibles (`cookie`,
+`authorization`, `x-storefront-private-token`…) y los tokens que aparezcan en
+los mensajes. Pide ser admin de la marca (como deployar). Una tienda
+deployada antes de esta versión empieza a tener logs en su próximo
+`hermes deploy`.
 
 ### `hermes domains add <dominio> [--checkout-subdomain] [--wait]` · `list` · `remove`
 

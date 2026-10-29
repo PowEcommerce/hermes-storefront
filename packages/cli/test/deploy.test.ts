@@ -36,7 +36,15 @@ const DEPLOY = {
 };
 
 /** La API de Hermes con los endpoints del hosting. Cloudflare "ya tiene" app.css. */
-function apiDeHosting(opts: { sinPlan?: boolean; dominios?: any[][]; activo?: Record<string, unknown> } = {}) {
+function apiDeHosting(
+  opts: {
+    sinPlan?: boolean;
+    dominios?: any[][];
+    activo?: Record<string, unknown>;
+    /** Lo que suma la API nueva a build-env (`hermes env`). */
+    variables?: { vars: Record<string, string>; secret_names: string[] };
+  } = {},
+) {
   const pasadas = [...(opts.dominios ?? [])];
   return apiFalsa((c: Llamada) => {
     if (c.auth !== `Bearer ${SESION.token}` && c.auth !== `Bearer ${HDT}`) return { status: 401, body: { error: 'x' } };
@@ -48,7 +56,10 @@ function apiDeHosting(opts: { sinPlan?: boolean; dominios?: any[][]; activo?: Re
           body: { error: 'hosting_no_habilitado', message: 'El plan de mimarca no incluye el hosting de Hermes (hermes deploy / hermes domains). Pedíselo a Pow.' },
         };
       return {
-        body: { env: { HERMES_TENANT: 'mimarca', HERMES_API_URL: 'https://api.pow.la/api', HERMES_PUBLIC_TOKEN: PST_TIENDA } },
+        body: {
+          env: { HERMES_TENANT: 'mimarca', HERMES_API_URL: 'https://api.pow.la/api', HERMES_PUBLIC_TOKEN: PST_TIENDA },
+          ...(opts.variables ?? {}),
+        },
       };
     }
     if (c.path === `${base}/tokens`)
@@ -133,9 +144,10 @@ async function proyecto(
     dominios?: any[][];
     git?: string;
     activo?: Record<string, unknown>;
+    variables?: { vars: Record<string, string>; secret_names: string[] };
   } = {},
 ) {
-  const a = apiDeHosting({ sinPlan: opts.sinPlan, dominios: opts.dominios, activo: opts.activo });
+  const a = apiDeHosting({ sinPlan: opts.sinPlan, dominios: opts.dominios, activo: opts.activo, variables: opts.variables });
   const t = await ctxDePrueba(a.fetch, { interactive: opts.interactive, respuestas: opts.respuestas });
   await new CredentialsStore(t.configDir).guardar('https://api.pow.la', SESION);
   const w = (rel: string, txt: string) => mkdir(dirname(join(t.cwd, rel)), { recursive: true }).then(() => writeFile(join(t.cwd, rel), txt));
@@ -372,6 +384,42 @@ describe('hermes deploy — secretos fuera del build (auditoría #5)', () => {
     expect(await main(['deploy'], t.ctx)).toBe(1);
     expect(t.err.join('\n')).toMatch(/tiene tus secretos .*_next\/static\/chunks\/page\.js/);
     expect(t.api.llamadas.some((c) => c.path.endsWith('/deployments') && c.method === 'POST')).toBe(false);
+  });
+});
+
+describe('hermes deploy — variables del proyecto (hermes env)', () => {
+  const variables = { vars: { NEXT_PUBLIC_GA_ID: 'G-123', CMS_URL: 'https://cms' }, secret_names: ['CMS_TOKEN'] };
+
+  it('las NO secretas van al entorno del build (pisan las locales); las secretas nunca, aunque estén en tu .env', async () => {
+    const t = await proyecto({ variables });
+    await writeFile(join(t.cwd, '.env'), (await readFile(join(t.cwd, '.env'), 'utf8')) + 'NEXT_PUBLIC_GA_ID=G-local\nCMS_TOKEN=token-local-del-cms\nMIA=1\n');
+    t.ctx.env = { ...t.ctx.env, CMS_TOKEN: 'token-del-shell' };
+    expect(await main(['deploy'], t.ctx)).toBe(0);
+    for (const p of t.procesos) {
+      expect(p.env.NEXT_PUBLIC_GA_ID).toBe('G-123');
+      expect(p.env.CMS_URL).toBe('https://cms');
+      expect(p.env.CMS_TOKEN).toBeUndefined();
+      expect(p.env.MIA).toBe('1');
+      expect(p.env.HERMES_PUBLIC_TOKEN).toBe(PST_TIENDA);
+    }
+    expect(t.out.join('\n')).toContain('Variables del proyecto en el build (production): NEXT_PUBLIC_GA_ID, CMS_URL');
+    // Ningún valor de variable viaja en el deploy (los pone Hermes).
+    expect(JSON.stringify(t.api.llamadas.map((c) => (c.body instanceof FormData ? null : c.body)))).not.toMatch(/G-123|token-del/);
+  });
+
+  it('si el valor local de una variable secreta quedó compilado, aborta sin subir nada', async () => {
+    const t = await proyecto({ variables });
+    await writeFile(join(t.cwd, '.env'), (await readFile(join(t.cwd, '.env'), 'utf8')) + 'CMS_TOKEN=token-local-del-cms\n');
+    t.filtrarEnElWorker('token-local-del-cms');
+    expect(await main(['deploy'], t.ctx)).toBe(1);
+    expect(t.err.join('\n')).toMatch(/variable secreta del proyecto/);
+    expect(t.api.llamadas.some((c) => c.path.endsWith('/deployments') && c.method === 'POST')).toBe(false);
+  });
+
+  it('API vieja (build-env sin vars): deploya como antes', async () => {
+    const t = await proyecto();
+    expect(await main(['deploy'], t.ctx)).toBe(0);
+    expect(t.out.join('\n')).not.toContain('Variables del proyecto');
   });
 });
 
