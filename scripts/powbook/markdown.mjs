@@ -79,6 +79,11 @@ export function titulos(md) {
 
 // ───────────── Inline ─────────────
 
+/** Si el texto de un link es un path de archivo o carpeta (sin espacios; no un paquete `@scope/x`). */
+export function esPath(texto) {
+  return !/\s/.test(texto) && !texto.startsWith('@') && /(^\.{1,2}\/|\/|\.[a-z0-9]{1,5}$)/i.test(texto) && !/^[a-z][a-z0-9+.-]*:/i.test(texto);
+}
+
 /**
  * Inline de Markdown → el inline que entiende Powbook. Powbook no anida
  * estilos dentro de un link: `[`x`](u)` y `**[x](u)**` quedan como `[x](u)`.
@@ -99,7 +104,11 @@ export function inline(texto, resolver) {
   t = t.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, txt, url) => {
     const limpio = txt.replace(/[`*]/g, '');
     const destino = resolver ? resolver(url) : url;
-    return `[${limpio}](${destino})`;
+    // Si el texto es el path de un archivo del repo (`cli.md`, `docs/cli.md`,
+    // `packages/storefront/openapi.yaml`) y el link va a una página de Powbook,
+    // el texto pasa a ser el título de esa página.
+    const titulo = esPath(limpio) ? resolver?.titulo?.(destino) : null;
+    return `[${titulo ?? limpio}](${destino})`;
   });
   return t.replace(/\s+/g, ' ').trim();
 }
@@ -279,11 +288,27 @@ export function aSpec(md, { resolver, niveles = { 1: null, 2: 'titulo', 3: 'titu
         const m = li.texto.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
         if (!m) {
           if (li.codigo) break;
+          // Tabla sangrada dentro de un ítem o de un paso: Powbook no anida
+          // bloques en una lista, así que se corta la lista, va la tabla como
+          // bloque propio y la lista sigue después.
+          if (/^\s+\|/.test(li.texto)) {
+            cerrarLista();
+            const bloque = [];
+            while (i < ls.length && !ls[i].codigo && /^\s+\|/.test(ls[i].texto)) bloque.push(ls[i++].texto);
+            const f = filas(bloque).map((fila) => fila.map(inl));
+            if (f.length >= 2) spec.push(['tabla', f]);
+            else if (f.length === 1) spec.push(['parrafo', f[0].join(' · ')]);
+            continue;
+          }
           // Continuación del ítem anterior (línea sangrada o pegada).
           if (/^\s+\S/.test(li.texto) || !empiezaBloque(li)) {
             const ultimo = spec.length && items.length === 0 ? spec[spec.length - 1] : null;
+            const sangrada = /^\s+\S/.test(li.texto);
             if (items.length) items[items.length - 1] += ` ${li.texto.trim()}`;
             else if (ultimo && ultimo[0] === 'paso') ultimo[2] = `${ultimo[2]} ${li.texto.trim()}`;
+            // El texto que sigue a una tabla anidada es un párrafo propio (del mismo ítem).
+            else if (ultimo && ultimo[0] === 'parrafoDeLista') ultimo[1] = `${ultimo[1]} ${li.texto.trim()}`;
+            else if (ultimo && ultimo[0] === 'tabla' && sangrada) spec.push(['parrafoDeLista', li.texto.trim()]);
             else break;
             i++;
             continue;
@@ -318,6 +343,7 @@ export function aSpec(md, { resolver, niveles = { 1: null, 2: 'titulo', 3: 'titu
   return spec.map((b) => {
     if (b[0] === 'paso') return ['paso', b[1], inl(b[2])];
     if (b[0] === 'lista') return ['lista', b[1].map(inl)];
+    if (b[0] === 'parrafoDeLista') return ['parrafo', inl(b[1])];
     return b;
   });
 }

@@ -141,21 +141,27 @@ for (const parte of partes) {
 
 // ───────────── Links ─────────────
 
+/** Link de cada página de Powbook (las fijas y las partes de la guía) → su título. */
+const TITULOS = new Map(Object.values(P).map((r) => [url(r), r.at(-1)]));
+for (const parte of partes) TITULOS.set(url(parte.ruta), parte.ruta.at(-1));
+
 /** Cómo queda un link de un .md del repo (`origen`) en Powbook. */
 function resolverDe(origen, rutaPagina) {
-  return (destino) => {
-    const enGithub = destino.match(new RegExp(`^${GITHUB.replace(/[.]/g, '\\.')}/(?:blob|tree)/main/([^#]+?)/?(#.*)?$`));
-    if (enGithub) {
-      if (RUTAS[enGithub[1]]) return url(RUTAS[enGithub[1]]) + (enGithub[2] ?? '');
-      return destino;
-    }
-    if (/^[a-z][a-z0-9+.-]*:/i.test(destino) || destino.startsWith('//')) return destino;
+  const resolver = (destino) => {
+    // Un link absoluto a un archivo del repo en GitHub (`…/blob/main/docs/x.md#ancla`,
+    // como los de los README que se leen en npm) se resuelve igual que uno relativo;
+    // si el archivo no tiene página en Powbook, queda el link a GitHub.
+    const enGithub = destino.match(new RegExp(`^${GITHUB.replace(/[.]/g, '\\.')}/(?:blob|tree)/main/([^#]+?)/?(?:#(.*))?$`));
+    if (enGithub && !RUTAS[enGithub[1]] && enGithub[1] !== GUIA) return destino;
+    if (!enGithub && (/^[a-z][a-z0-9+.-]*:/i.test(destino) || destino.startsWith('//'))) return destino;
     // Una ruta del sitio de VitePress (`/guias/agencias#…`) o un link ya resuelto.
     if (destino.startsWith('/')) return RUTAS_DEL_SITIO[destino.split('#')[0]] ? linkDelSitio(destino) : destino;
-    const [ruta, ancla] = destino.split('#');
-    const repo = ruta
-      ? path.posix.normalize(path.posix.join(path.posix.dirname(origen), ruta)).replace(/\/$/, '')
-      : origen;
+    const [ruta, ancla] = enGithub ? [enGithub[1], enGithub[2]] : destino.split('#');
+    const repo = enGithub
+      ? enGithub[1]
+      : ruta
+        ? path.posix.normalize(path.posix.join(path.posix.dirname(origen), ruta)).replace(/\/$/, '')
+        : origen;
     if (repo === GUIA) {
       const a = ancla ? anclasGuia.get(ancla) : null;
       if (a) {
@@ -174,6 +180,9 @@ function resolverDe(origen, rutaPagina) {
     }
     return `${GITHUB}/${carpeta ? 'tree' : 'blob'}/main/${repo}${ancla ? `#${ancla}` : ''}`;
   };
+  // El título de la página a la que lleva un link ya resuelto (para los links cuyo texto es un path).
+  resolver.titulo = (resuelto) => (resuelto.startsWith('/') ? TITULOS.get(resuelto.split('#')[0]) ?? null : null);
+  return resolver;
 }
 
 /** Un link de una ruta del sitio (`/guias/agencias#tu-dominio`) → Powbook. */
