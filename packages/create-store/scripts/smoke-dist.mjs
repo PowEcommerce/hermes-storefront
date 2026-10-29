@@ -26,7 +26,10 @@ if (!/^\^\d/.test(String(pkg.devDependencies?.['@hermesecommerce/cli'])))
   throw new Error(`la CLI no viaja como devDependency publicada: ${pkg.devDependencies?.['@hermesecommerce/cli']}`);
 for (const f of ['app/layout.tsx', '.gitignore', '.env.example'])
   if (!existsSync(join(dir, 'tienda', f))) throw new Error(`falta ${f}`);
-for (const f of ['.env', 'node_modules', '.npmrc'])
+for (const f of ['.env', 'node_modules', '_npmrc', '_gitignore'])
   if (existsSync(join(dir, 'tienda', f))) throw new Error(`se copió ${f}`);
+const npmrc = readFileSync(join(dir, 'tienda', '.npmrc'), 'utf8');
+if (!/^legacy-peer-deps=true$/m.test(npmrc) || npmrc.includes('install-links'))
+  throw new Error(`.npmrc inesperado:\n${npmrc}`);
 
 console.log(`smoke OK (node ${process.versions.node})`);

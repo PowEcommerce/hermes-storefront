@@ -46,6 +46,10 @@ node scripts/smoke-dist.mjs   # crea una tienda real en un dir temporal
 
 Sin dependencias de runtime. Al publicar, `prepack` buildea y copia el
 `starter/` de la raíz del repo en `template/` (`.gitignore` viaja como `_gitignore`, porque npm
-lo borra). `VERSIONES_PUBLICADAS` en `src/create.ts` tiene la versión del SDK
+lo borra). La tienda nueva lleva su propio `.npmrc` con `legacy-peer-deps=true` (viaja como
+`_npmrc` por el mismo motivo; el `.npmrc` del starter no se copia): npm 10, el de Node 20/22,
+falla con vitest 4 al resolver las peers («Cannot read properties of null (reading
+'edgesOut')»); npm 11 no lo necesita. Las peers que hacen falta están declaradas en el
+`package.json` del starter. `VERSIONES_PUBLICADAS` en `src/create.ts` tiene la versión del SDK
 que se escribe en la tienda nueva (un test verifica que coincida con
 `packages/storefront/package.json` y `packages/cli/package.json`). CI: `.github/workflows/ci.yml`.

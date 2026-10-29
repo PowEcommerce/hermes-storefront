@@ -1,6 +1,6 @@
 {
   "name": "@hermesecommerce/create-store",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Crea una tienda headless de Hermes a partir del starter (Next.js + @hermesecommerce/storefront): npm create @hermesecommerce/store mi-tienda",
   "license": "MIT",
   "repository": {

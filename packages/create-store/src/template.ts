@@ -1,4 +1,4 @@
-import { cp, readdir, rename, stat } from 'node:fs/promises';
+import { cp, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import { basename, join, relative, sep } from 'node:path';
 
 /**
@@ -20,7 +20,22 @@ export function seCopia(rel: string): boolean {
   return true;
 }
 
-/** Copia `origen` en `destino` sin lo de `seCopia`. `.gitignore` viaja como `_gitignore` (npm lo borra al publicar). */
+/**
+ * El `.npmrc` de una tienda nueva. No es el del starter del repo (ese lleva
+ * `install-links`, que sólo sirve para los `file:` de adentro del repo y no se copia).
+ */
+export const NPMRC_TIENDA = `# npm 10 (Node 20/22) falla con vitest 4 al resolver peer dependencies
+# («Cannot read properties of null (reading 'edgesOut')»). Con esto instala
+# bien; npm 11 no lo necesita. Las peers que hacen falta están declaradas
+# explícitamente en package.json.
+legacy-peer-deps=true
+`;
+
+/**
+ * Copia `origen` en `destino` sin lo de `seCopia`. `.gitignore` y `.npmrc` viajan
+ * como `_gitignore` y `_npmrc` en el paquete publicado (npm los borra al publicar)
+ * y vuelven a su nombre al crear la tienda. El `.npmrc` es siempre `NPMRC_TIENDA`.
+ */
 export async function copiarTemplate(
   origen: string,
   destino: string,
@@ -37,6 +52,12 @@ export async function copiarTemplate(
   const otro = como === '.gitignore' ? '_gitignore' : '.gitignore';
   const desde = join(destino, otro);
   if (await existe(desde)) await rename(desde, join(destino, como));
+
+  // _npmrc en el template publicado; .npmrc en la tienda (si el template no lo
+  // trae, como el starter/ del repo, se escribe NPMRC_TIENDA).
+  if (como === '_gitignore') await writeFile(join(destino, '_npmrc'), NPMRC_TIENDA);
+  else if (await existe(join(destino, '_npmrc'))) await rename(join(destino, '_npmrc'), join(destino, '.npmrc'));
+  else await writeFile(join(destino, '.npmrc'), NPMRC_TIENDA);
 }
 
 export async function existe(p: string): Promise<boolean> {

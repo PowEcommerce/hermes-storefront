@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { carpetaLibre, copiarTemplate, existe } from './template';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 
 /**
  * Versiones publicadas de los paquetes que el starter usa con `file:` dentro
@@ -190,7 +190,10 @@ export async function crear(argv: string[], ctx: Ctx): Promise<number> {
     ctx.out(`\nInstalando dependencias con ${pm}…`);
     const code = await ctx.run(pm, ['install'], { cwd: destino });
     instalado = code === 0;
-    if (!instalado) ctx.err(`⚠ \`${pm} install\` salió con ${code}: corrélo a mano dentro de ${carpeta}.`);
+    if (!instalado) {
+      ctx.err(`⚠ \`${pm} install\` salió con ${code}: corrélo a mano dentro de ${carpeta}.`);
+      if (pm === 'npm') ctx.err('  Si ves `edgesOut`, actualizá npm (`npm i -g npm@latest`).');
+    }
   }
 
   const cd = carpeta === '.' ? null : `cd ${carpeta}`;

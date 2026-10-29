@@ -13,7 +13,7 @@ import {
   detectarPm,
   nombreDePaquete,
 } from '../src/create';
-import { seCopia } from '../src/template';
+import { NPMRC_TIENDA, copiarTemplate, seCopia } from '../src/template';
 
 const STARTER = fileURLToPath(new URL('../../../starter', import.meta.url));
 
@@ -83,7 +83,11 @@ describe('create-store', () => {
     expect(await crear(['Mi Tienda'], ctx)).toBe(0);
     const dest = join(cwd, 'Mi Tienda');
     const archivos = (await readdir(dest)).sort();
-    expect(archivos).toEqual(['.env.example', '.gitignore', 'app', 'package.json']);
+    expect(archivos).toEqual(['.env.example', '.gitignore', '.npmrc', 'app', 'package.json']);
+    // el .npmrc es el de la tienda (legacy-peer-deps por npm 10), no el del repo (install-links)
+    const npmrc = await readFile(join(dest, '.npmrc'), 'utf8');
+    expect(npmrc).toMatch(/^legacy-peer-deps=true$/m);
+    expect(npmrc).not.toContain('install-links');
     const pkg = JSON.parse(await readFile(join(dest, 'package.json'), 'utf8'));
     expect(pkg.name).toBe('mi-tienda');
     expect(pkg.version).toBe('0.1.0');
@@ -119,7 +123,33 @@ describe('create-store', () => {
     const { ctx, err, out } = await ctxDePrueba({ codigos: [1] });
     expect(await crear(['tienda', '--pm', 'yarn'], ctx)).toBe(0);
     expect(err.join('\n')).toContain('`yarn install` salió con 1');
+    expect(err.join('\n')).not.toContain('edgesOut');
     expect(out.join('\n')).toContain('yarn install');
+  });
+
+  it('si falla `npm install`, sugiere actualizar npm por el error de edgesOut (npm 10)', async () => {
+    const { ctx, err } = await ctxDePrueba({ codigos: [1] });
+    expect(await crear(['tienda'], ctx)).toBe(0);
+    expect(err.join('\n')).toContain('`npm install` salió con 1');
+    expect(err.join('\n')).toContain('Si ves `edgesOut`, actualizá npm (`npm i -g npm@latest`)');
+  });
+
+  it('el template publicado lleva _npmrc y la tienda lo recibe como .npmrc', async () => {
+    const tpl = await templateFalso();
+    const publicado = join(await mkdtemp(join(tmpdir(), 'hermes-pub-')), 'template');
+    await copiarTemplate(tpl, publicado, { gitignoreComo: '_gitignore' });
+    const enPaquete = await readdir(publicado);
+    expect(enPaquete).toEqual(expect.arrayContaining(['_gitignore', '_npmrc']));
+    expect(enPaquete).not.toContain('.npmrc');
+    expect(await readFile(join(publicado, '_npmrc'), 'utf8')).toBe(NPMRC_TIENDA);
+
+    const { ctx, cwd } = await ctxDePrueba();
+    ctx.templateDir = publicado;
+    await crear(['tienda', '--no-install'], ctx);
+    const archivos = await readdir(join(cwd, 'tienda'));
+    expect(archivos).toEqual(expect.arrayContaining(['.gitignore', '.npmrc']));
+    expect(archivos).not.toContain('_npmrc');
+    expect(await readFile(join(cwd, 'tienda', '.npmrc'), 'utf8')).toMatch(/^legacy-peer-deps=true$/m);
   });
 
   /** El install falso deja la CLI del proyecto en node_modules (como el install de verdad). */
@@ -250,8 +280,14 @@ describe('helpers', () => {
     ctx.templateDir = STARTER;
     await crear(['real', '--no-install'], ctx);
     const archivos = await readdir(join(cwd, 'real'));
-    for (const prohibido of ['node_modules', '.next', '.env', '.npmrc', 'package-lock.json', '.hermes'])
+    for (const prohibido of ['node_modules', '.next', '.env', '_npmrc', 'package-lock.json', '.hermes'])
       expect(archivos).not.toContain(prohibido);
+    // .npmrc sí, pero el de la tienda: el del starter (install-links) no se copia
+    const npmrc = await readFile(join(cwd, 'real', '.npmrc'), 'utf8');
+    expect(npmrc).toMatch(/^legacy-peer-deps=true$/m);
+    expect(npmrc).not.toContain('install-links');
+    // el starter del repo también lo usa (CI con npm 10)
+    expect(await readFile(join(STARTER, '.npmrc'), 'utf8')).toMatch(/^legacy-peer-deps=true$/m);
     expect(archivos).toEqual(expect.arrayContaining(['app', 'lib', 'components', 'README.md', '.gitignore', '.env.example']));
   });
 });
