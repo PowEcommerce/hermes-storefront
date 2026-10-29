@@ -1,0 +1,108 @@
+# ============================================================
+# Sitio de documentación para agencias (site/, VitePress).
+#
+# - build (PRs y push a main): buildea el sitio y corre el escáner de
+#   referencias internas sobre el dist/ generado (el sitio es público).
+# - deploy (sólo push a main): vuelve a buildear con la base que da
+#   actions/configure-pages (/<repo>/ o / con dominio propio) y publica en
+#   GitHub Pages. Requiere Settings → Pages → Source: GitHub Actions.
+#
+# El sitio lee los .md de docs/, los README de los paquetes, el ejemplo del
+# SDK y packages/storefront/openapi.yaml: no hay copias que mantener.
+# ============================================================
+name: Docs
+
+on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - 'packages/storefront/README.md'
+      - 'packages/storefront/openapi.yaml'
+      - 'packages/storefront/examples/**'
+      - 'packages/cli/README.md'
+      - 'scripts/tarball-sin-internos.sh'
+      - 'scripts/nombres-internos.mjs'
+      - '.github/workflows/docs.yml'
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: docs-build-${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      # Sólo el lockfile, sin scripts de instalación de terceros.
+      - run: npm ci --ignore-scripts
+
+      - run: npm run build
+
+      - name: El sitio generado no lleva nada interno
+        working-directory: .
+        run: scripts/tarball-sin-internos.sh site/.vitepress/dist
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: docs-pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - id: pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Build con la base de Pages
+        working-directory: site
+        env:
+          DOCS_BASE: ${{ steps.pages.outputs.base_path }}/
+        run: npm ci --ignore-scripts && npm run build
+
+      - name: El sitio generado no lleva nada interno
+        run: scripts/tarball-sin-internos.sh site/.vitepress/dist
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/.vitepress/dist
+
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
