@@ -10,6 +10,7 @@ agencia, en la [guía para agencias](./guia-agencias.md).
 ```bash
 npm install -g @hermesecommerce/cli    # 1. una sola vez por máquina (como `@shopify/cli`)
 hermes create mi-marca                 # 2. = npm create @hermesecommerce/store mi-marca
+                                       #    (--template skeleton: lo mínimo; default demo, la tienda de ejemplo)
 cd mi-marca                            # 3.
 hermes login                           # 4. tu usuario del backoffice (una vez por máquina)
 hermes link                            # 5. elegís la marca → su proyecto + tokens HERMES_* en .env
@@ -109,10 +110,15 @@ varios developers trabajan sobre él, como en Hydrogen/Oxygen:
 
 ## Permisos
 
-`hermes link`, `deploy`, `domains`, `tokens` y `mail-*` piden ser **admin de
-la marca** y que la marca esté **autorizada en tu sesión** (la elegiste al
+`hermes link`, `deploy`, `domains`, `logs`, `env`, `tokens` y `mail-*` piden
+ser **admin de la marca** y que la marca esté **autorizada en tu sesión** (la elegiste al
 aprobar el `hermes login`). Un token de deploy (`hdt_`) reemplaza esos
-permisos sólo para deployar su proyecto.
+permisos sólo para deployar su proyecto: no sirve para `hermes logs` ni
+`hermes env`.
+
+Los logs piden lo mismo que deployar porque pueden tener datos de tus
+compradores (lo que tu código escriba con `console.log`): los ve quien puede
+publicar la tienda, no cualquier rol de la marca.
 
 | Respuesta | Qué pasa | Qué hacer |
 |---|---|---|
@@ -136,8 +142,9 @@ permisos sólo para deployar su proyecto.
    `HERMES_REVALIDATE_SECRET` en el entorno, y aborta si encuentra alguno de
    tus secretos en el bundle (OpenNext compila los `.env*` dentro del worker).
 3. Sube el bundle a la API de Hermes; sólo se suben los assets que no estaban.
-4. Hermes lo publica con los tokens de la tienda como secretos y, si la
-   tienda tiene `app/api/hermes/revalidate`, crea el webhook de purga.
+4. Hermes lo publica con los tokens de la tienda como secretos, tus
+   variables de entorno (`hermes env`) y, si la tienda tiene
+   `app/api/hermes/revalidate`, crea el webhook de purga.
 
 - Las tiendas corren aisladas, con límites de CPU y de subpedidos, y sin
   acceso a redes internas.
@@ -146,6 +153,52 @@ permisos sólo para deployar su proyecto.
   de ese deploy, con los tokens vigentes de la tienda.
 - `hermes deploy` avisa si el deploy activo es de un commit que no está en tu
   branch o si tenés cambios sin commitear (en CI: `--yes`).
+
+## Variables de entorno: `hermes env`
+
+Como en Oxygen o Vercel: tus claves (analytics, un CMS…) por proyecto y
+entorno (`production`, o `preview` para todas las branches). Hermes las pone
+en el worker en cada deploy.
+
+- **Cifradas** en Hermes. Las **secretas** (`--secret`) nunca vuelven en
+  claro: ni en `hermes env list` (salen enmascaradas), ni en el build, ni en
+  `hermes env pull`. En el worker van como secretos; las normales, como texto
+  plano.
+- **Cambiar una variable no redeploya**: se aplica en el próximo
+  `hermes deploy` (también un rollback o una rotación de tokens usan las
+  variables de ese momento).
+- **Build**: `hermes deploy` pone las normales en el entorno del build (las
+  `NEXT_PUBLIC_*` se compilan ahí) y saca las secretas aunque estén en tu
+  `.env` o en tu shell; si el valor local de una secreta quedó en el bundle,
+  aborta. Por eso una `NEXT_PUBLIC_*` no puede ser secreta.
+- **Reglas**: nombre `^[A-Z][A-Z0-9_]{0,63}$`; no se pueden usar `HERMES_*`,
+  `CF_*`, `CLOUDFLARE_*` ni `ASSETS` (son de Hermes y de Cloudflare); hasta
+  50 por proyecto y entorno; hasta 5 KB por valor; una secreta no pasa a
+  normal sin borrarla antes.
+- **Local**: `hermes env pull` baja las normales a tu `.env` para
+  `hermes dev`; las secretas las cargás vos.
+
+## Logs: `hermes logs`
+
+Los pedidos (método, path, status, duración), tus `console.log` /
+`console.error` y las excepciones de la tienda publicada. Hermes los lee de
+Workers Logs de Cloudflare y te los pasa: la CLI no habla con Cloudflare.
+
+- **En vivo** por defecto: pide los nuevos cada 3 s, hasta 15 minutos (o
+  Ctrl+C). `--since 1h` muestra también los recientes (hasta 7 días);
+  `--no-follow` muestra y sale.
+- Filtros: `--preview [--branch x]`, `--status error|ok` (error = 5xx,
+  excepción o `console.error`; se ve el pedido entero), `--search <texto>`.
+  `--json`: un evento por línea.
+- **Sólo tus scripts**: Hermes verifica que el proyecto y el entorno sean de
+  la marca antes de consultar, y filtra del lado del server.
+- **Datos sensibles**: los headers `cookie`, `authorization`,
+  `x-storefront-private-token` (y los que tienen token/secret/session en el
+  nombre) llegan como `[filtrado]`; lo mismo los tokens de Hermes y los
+  `Bearer …` que aparezcan en tus mensajes. Igual, no loguees datos de tus
+  compradores.
+- Se guardan 7 días. Una tienda deployada antes de que existiera `hermes
+  logs` empieza a tener logs en su próximo `hermes deploy`.
 
 Dominios, checkout en tu dominio y los mails de la marca: en la
 [guía para agencias](./guia-agencias.md#deploy-en-hermes).

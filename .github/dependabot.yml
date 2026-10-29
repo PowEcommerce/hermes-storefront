@@ -16,6 +16,7 @@ updates:
       - /packages/cli
       - /packages/create-store
       - /starter
+      - /starter-demo
       - /site
     schedule:
       interval: weekly

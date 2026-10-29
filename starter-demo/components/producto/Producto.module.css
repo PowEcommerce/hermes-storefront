@@ -1,0 +1,471 @@
+/* ---- Página: galería a la izquierda, columna de compra de 408 sticky ---- */
+.ficha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 408px;
+  align-items: start;
+}
+
+.columna {
+  position: sticky;
+  top: calc(var(--ui-header-alto) + 16px);
+  padding: 24px 16px 40px;
+}
+
+.migas {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 767px) {
+  .ficha {
+    grid-template-columns: 1fr;
+  }
+
+  /* La columna se disuelve: migas · galería · compra. */
+  .columna {
+    display: contents;
+  }
+
+  .migas {
+    order: 0;
+    margin: 0;
+    padding: 12px 16px;
+  }
+
+  .galeriaCelda {
+    order: 1;
+  }
+
+  .compraCelda {
+    order: 2;
+    padding: 20px 16px 8px;
+  }
+}
+
+/* ---- Galería ------------------------------------------------------------ */
+.galeria {
+  min-width: 0;
+}
+
+.grilla {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.grillaUna {
+  grid-template-columns: minmax(0, 640px);
+  justify-content: center;
+}
+
+.pieza,
+.slide {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background: var(--ui-fondo-foto);
+  overflow: hidden;
+}
+
+.pieza img,
+.slide img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fotoVacia {
+  aspect-ratio: 4 / 5;
+  background: var(--ui-fondo-foto);
+}
+
+.carrusel {
+  display: none;
+}
+
+.carruselPista {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.carruselPista::-webkit-scrollbar {
+  display: none;
+}
+
+.slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+}
+
+.puntos {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.punto {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0.5;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+}
+
+.puntoActivo {
+  opacity: 1;
+}
+
+@media (max-width: 767px) {
+  .grilla {
+    display: none;
+  }
+
+  .carrusel {
+    display: block;
+    position: relative;
+  }
+}
+
+/* ---- Columna de compra -------------------------------------------------- */
+.detalle {
+  color: var(--ui-negro);
+}
+
+.cucardas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  margin: 0 0 4px;
+  font: var(--ui-t-chico-m);
+}
+
+.cucardaOferta {
+  color: var(--ui-oferta);
+}
+
+/* Nombre y precio en la misma línea. */
+.cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.titulo {
+  margin: 0;
+  font: var(--ui-t-nombre);
+  text-wrap: balance;
+}
+
+.precio {
+  flex-shrink: 0;
+  margin: 0;
+  font: var(--ui-t-nombre);
+  font-weight: 400;
+  text-align: right;
+}
+
+.desde {
+  font: var(--ui-t-chico);
+  color: var(--ui-tinta-2);
+}
+
+.precioOferta {
+  color: var(--ui-oferta);
+}
+
+.precioTachado {
+  display: block;
+  font: var(--ui-t-cuerpo);
+  color: var(--ui-tinta-2);
+}
+
+.grupo {
+  margin: 24px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.etiqueta {
+  display: flex;
+  gap: 8px;
+  padding: 0;
+  font: var(--ui-t-chico-m);
+}
+
+.etiquetaValor {
+  font-weight: 400;
+  color: var(--ui-tinta-2);
+}
+
+/* Colores: cuadros de 48×60 con el hexa; el elegido con borde. */
+.colores {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.color {
+  display: block;
+  width: 48px;
+  height: 60px;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px var(--ui-gris-700);
+  transition: box-shadow var(--ui-mov-hover) ease-out;
+}
+
+.color:hover {
+  box-shadow: inset 0 0 0 1px var(--ui-negro);
+}
+
+.colorActivo {
+  box-shadow: 0 0 0 1px var(--ui-blanco), 0 0 0 2px var(--ui-negro);
+}
+
+.colorAgotado {
+  opacity: 0.4;
+}
+
+/* Cajas de talle: 48×40, borde 1, 14/400; la elegida invertida; la agotada tachada. */
+.talles {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+@keyframes sacudida {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+.sacudida {
+  animation: sacudida 0.5s ease-out;
+}
+
+.talle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--ui-negro);
+  border-radius: var(--ui-radio);
+  background: var(--ui-blanco);
+  color: var(--ui-negro);
+  font: var(--ui-t-chico);
+  font-size: 14px;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, background var(--ui-mov-hover) ease-out, color var(--ui-mov-hover) ease-out;
+}
+
+.talle:hover:not(:disabled),
+.talle:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ui-negro);
+  outline: none;
+}
+
+.talleActivo,
+.talleActivo:hover:not(:disabled) {
+  background: var(--ui-negro);
+  color: var(--ui-blanco);
+  box-shadow: none;
+}
+
+.talle:disabled {
+  border-color: var(--ui-gris-700);
+  color: var(--ui-tinta-2);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.quedan {
+  margin: 8px 0 0;
+  font: var(--ui-t-chico);
+  color: var(--ui-oferta);
+}
+
+.compra {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.cantidad {
+  width: 72px;
+  height: 48px;
+  padding: 0 10px;
+  border: 1px solid var(--ui-negro);
+  border-radius: var(--ui-radio);
+  background: var(--ui-blanco);
+  font: var(--ui-t-cuerpo);
+  color: var(--ui-negro);
+}
+
+.cta {
+  flex: 1;
+}
+
+/* Sin talle elegido, el CTA va en contorno y dice «Elegí tu talle». */
+.ctaPideTalle {
+  background: var(--ui-blanco);
+  border-color: var(--ui-negro);
+  color: var(--ui-negro);
+  --ui-anillo: var(--ui-negro);
+}
+
+.ok,
+.error {
+  margin: 12px 0 0;
+  font: var(--ui-t-chico);
+  font-size: 14px;
+}
+
+.ok {
+  color: var(--ui-ok);
+}
+
+.error {
+  color: var(--ui-error);
+}
+
+.sinStock {
+  margin: 24px 0 0;
+  padding: 16px 12px;
+  border: 1px solid var(--ui-gris-700);
+  border-radius: var(--ui-radio);
+  background: var(--ui-gris-100);
+  font: var(--ui-t-cuerpo-m);
+}
+
+/* Envío / cambios: la caja gris con ícono, título 16/500 y detalle 12. */
+.caja {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 16px 12px;
+  border: 1px solid var(--ui-gris-700);
+  border-radius: var(--ui-radio);
+  background: var(--ui-gris-100);
+}
+
+.cajaTitulo {
+  margin: 0;
+  font: var(--ui-t-cuerpo-m);
+}
+
+.cajaTexto {
+  margin: 4px 0 0;
+  font: var(--ui-t-chico);
+  color: var(--ui-tinta-2);
+}
+
+.descripcion {
+  margin: 24px 0 0;
+  font: var(--ui-t-cuerpo);
+  white-space: pre-line;
+}
+
+/* Solapas como acordeón. */
+.solapas {
+  margin-top: 24px;
+  border-top: 1px solid var(--ui-gris-700);
+}
+
+.solapa {
+  border-bottom: 1px solid var(--ui-gris-700);
+}
+
+.solapaTitulo {
+  display: flex;
+  align-items: center;
+  padding: 16px 0;
+  font: var(--ui-t-cuerpo-m);
+  cursor: pointer;
+  list-style: none;
+}
+
+.solapaTitulo::-webkit-details-marker {
+  display: none;
+}
+
+.solapaTitulo::after {
+  content: '+';
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 20px;
+}
+
+.solapa[open] > .solapaTitulo::after {
+  content: '−';
+}
+
+.solapaCuerpo {
+  padding: 0 0 16px;
+  font: var(--ui-t-cuerpo);
+  color: var(--ui-tinta-2);
+}
+
+.sku {
+  margin: 16px 0 0;
+  font: var(--ui-t-chico);
+  color: var(--ui-tinta-2);
+}
+
+/* Relacionados y reseñas, debajo. */
+.relacionados {
+  padding: 80px 0 32px var(--ui-sangria);
+}
+
+.relacionadoItem {
+  flex: 0 0 436px;
+  max-width: 80vw;
+  scroll-snap-align: start;
+}
+
+.resenas {
+  padding: 48px var(--ui-sangria) 96px;
+}
+
+@media (max-width: 767px) {
+  .cabecera {
+    flex-wrap: wrap;
+  }
+
+  .precio {
+    text-align: left;
+  }
+
+  .precioTachado {
+    display: inline;
+  }
+
+  .relacionados {
+    padding: 48px 0 16px var(--ui-sangria-mobile);
+  }
+
+  .relacionadoItem {
+    flex-basis: 153px;
+  }
+
+  .resenas {
+    padding: 32px var(--ui-sangria-mobile) 64px;
+  }
+}

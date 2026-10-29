@@ -26,6 +26,7 @@ import {
   slugDeProyecto,
 } from '../project';
 import { confirmar, conSesion, elegir } from './common';
+import { bajarVariables } from './env';
 
 export function archivoEnv(flags: Parsed['flags']): string {
   return str(flags['env-file']) ?? '.env';
@@ -334,7 +335,9 @@ export async function unlink(ctx: Ctx, { flags }: Parsed): Promise<void> {
 }
 
 /**
- * `hermes env pull`: deja el .env al día con el proyecto linkeado. Los
+ * `hermes env pull [--environment production|preview]`: deja el .env al día
+ * con el proyecto linkeado y baja las variables NO secretas del proyecto
+ * (`hermes env set`; las secretas nunca se bajan). Los
  * tokens en claro no se pueden volver a bajar (la API guarda sólo el hash):
  * sin --rotate verifica que los del .env sigan vigentes; con --rotate emite
  * tus tokens de desarrollo nuevos (y revoca tus anteriores). Nunca toca los
@@ -347,6 +350,7 @@ export async function envPull(ctx: Ctx, { flags }: Parsed): Promise<void> {
   const { api, cliente } = await conSesion(ctx, { ...flags, api: flags.api ?? p.api });
   if (flags.rotate) {
     await linkear(ctx, cliente, api, flags, p.tenant, p.project_name);
+    await bajarVariables(ctx, cliente, p, flags);
     return;
   }
   const archivo = archivoEnv(flags);
@@ -361,6 +365,8 @@ export async function envPull(ctx: Ctx, { flags }: Parsed): Promise<void> {
     },
     archivo,
   );
+  // Las variables NO secretas del proyecto (`hermes env`), para `hermes dev`.
+  await bajarVariables(ctx, cliente, p, flags);
   if (problemas.length) {
     for (const x of problemas) ctx.err(`  ✘ ${x}`);
     throw new CliError(

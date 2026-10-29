@@ -6,7 +6,15 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { carpetaLibre, copiarTemplate, existe } from './template';
 
-export const VERSION = '0.1.1';
+export const VERSION = '0.2.0';
+
+/** Templates: `demo` (diseño completo, lindo y vendible) y `skeleton` (mínimo, para arrancar de cero). */
+export const TEMPLATES = ['demo', 'skeleton'] as const;
+export type Template = (typeof TEMPLATES)[number];
+export const TEMPLATE_POR_DEFECTO: Template = 'demo';
+
+/** Carpeta de cada template en la raíz del repo (sin publicar). */
+export const CARPETA_EN_EL_REPO: Record<Template, string> = { demo: 'starter-demo', skeleton: 'starter' };
 
 /**
  * Versiones publicadas de los paquetes que el starter usa con `file:` dentro
@@ -14,7 +22,7 @@ export const VERSION = '0.1.1';
  */
 export const VERSIONES_PUBLICADAS: Record<string, string> = {
   '@hermesecommerce/storefront': '^0.1.0',
-  '@hermesecommerce/cli': '^0.1.0',
+  '@hermesecommerce/cli': '^0.2.0',
 };
 
 /** Major de una versión ("^0.1.0" → 0). */
@@ -39,8 +47,13 @@ export interface Ctx {
   ask: (pregunta: string) => Promise<string>;
   /** Corre un comando heredando la terminal; devuelve el código de salida. */
   run: (cmd: string, args: string[], opts: { cwd: string }) => Promise<number>;
-  /** Carpeta del template (default: ./template publicado, o el starter/ de la raíz en el repo). */
+  /**
+   * Carpeta del template (pisa la elección de --template; para los tests).
+   * Default: ./templates/<template> publicado, o el de la raíz del repo.
+   */
   templateDir?: string;
+  /** Carpeta con un subdirectorio por template (`demo/`, `skeleton/`); para los tests. */
+  templatesDir?: string;
 }
 
 export class CreateError extends Error {}
@@ -50,6 +63,8 @@ const AYUDA = `create-store ${VERSION} — crea una tienda headless de Hermes
 Uso: npm create @hermesecommerce/store [carpeta] [-- opciones]
   o: hermes create [carpeta] [opciones]   (con la CLI instalada: npm install -g @hermesecommerce/cli)
 
+  --template <demo|skeleton>  demo: tienda con diseño completo (default)
+                      skeleton: lo mínimo, para armar tu diseño de cero
   --no-install        No instalar dependencias (imprime los comandos)
   --pm <npm|pnpm|yarn|bun>  Gestor de paquetes (default: el que corrió el comando)
   --link / --no-link  Correr (o no) \`hermes link\` al terminar sin preguntar
@@ -61,6 +76,7 @@ interface Opciones {
   install: boolean;
   pm?: Pm;
   link?: boolean;
+  template?: Template;
   help: boolean;
 }
 
@@ -73,7 +89,12 @@ export function parsear(argv: string[]): Opciones {
     else if (a === '--install') o.install = true;
     else if (a === '--link') o.link = true;
     else if (a === '--no-link') o.link = false;
-    else if (a === '--pm' || a.startsWith('--pm=')) {
+    else if (a === '--template' || a === '-t' || a.startsWith('--template=')) {
+      const v = a.includes('=') ? a.slice(a.indexOf('=') + 1) : argv[++i];
+      if (!TEMPLATES.includes(v as Template))
+        throw new CreateError(`--template: "${v ?? ''}" no es ${TEMPLATES.join(' ni ')}`);
+      o.template = v as Template;
+    } else if (a === '--pm' || a.startsWith('--pm=')) {
       const v = a.includes('=') ? a.slice(5) : argv[++i];
       if (!['npm', 'pnpm', 'yarn', 'bun'].includes(v ?? ''))
         throw new CreateError(`--pm: "${v ?? ''}" no es npm, pnpm, yarn ni bun`);
@@ -133,13 +154,28 @@ export async function cliLogueada(env: Ctx['env']): Promise<boolean> {
   }
 }
 
-async function templatePorDefecto(): Promise<string> {
-  const publicado = fileURLToPath(new URL('../template', import.meta.url));
+async function templatePorDefecto(t: Template): Promise<string> {
+  const publicado = fileURLToPath(new URL(`../templates/${t}`, import.meta.url));
   if (await existe(join(publicado, 'package.json'))) return publicado;
-  // Dentro del repo (sin publicar): packages/create-store/dist → ../../../starter
-  const repo = fileURLToPath(new URL('../../../starter', import.meta.url));
+  // Dentro del repo (sin publicar): packages/create-store/dist → ../../../<carpeta>
+  const repo = fileURLToPath(new URL(`../../../${CARPETA_EN_EL_REPO[t]}`, import.meta.url));
   if (await existe(join(repo, 'package.json'))) return repo;
-  throw new CreateError('No encuentro el template del starter.');
+  throw new CreateError(`No encuentro el template ${t}.`);
+}
+
+/** Qué template usar: el de --template; si no, se pregunta (con terminal) o va el demo. */
+export async function elegirTemplate(o: { template?: Template }, ctx: Pick<Ctx, 'interactive' | 'ask'>): Promise<Template> {
+  if (o.template) return o.template;
+  if (!ctx.interactive) return TEMPLATE_POR_DEFECTO;
+  const r = (
+    await ctx.ask(
+      '¿Con qué template?\n  1) demo      tienda con diseño completo, lista para mostrar (recomendado)\n  2) skeleton  lo mínimo, para armar tu diseño de cero\nElegí [1]: ',
+    )
+  )
+    .trim()
+    .toLowerCase();
+  if (r === '2' || r === 'skeleton') return 'skeleton';
+  return TEMPLATE_POR_DEFECTO;
 }
 
 /** package.json de la tienda nueva: su nombre y los paquetes de Hermes con la versión de npm. */
@@ -176,14 +212,15 @@ export async function crear(argv: string[], ctx: Ctx): Promise<number> {
 
   const nombre = nombreDePaquete(destino);
   const pm = o.pm ?? detectarPm(ctx.env);
-  const template = ctx.templateDir ?? (await templatePorDefecto());
+  const elegido = await elegirTemplate(o, ctx);
+  const template = ctx.templateDir ?? (ctx.templatesDir ? join(ctx.templatesDir, elegido) : await templatePorDefecto(elegido));
 
-  ctx.out(`\nCreando la tienda en ${destino}…`);
+  ctx.out(`\nCreando la tienda (template ${elegido}) en ${destino}…`);
   await copiarTemplate(template, destino);
   const pkgPath = join(destino, 'package.json');
   const pkg = JSON.parse(await readFile(pkgPath, 'utf8')) as Record<string, any>;
   await writeFile(pkgPath, `${JSON.stringify(ajustarPackageJson(pkg, nombre), null, 2)}\n`);
-  ctx.out(`✔ Starter copiado (${nombre}).`);
+  ctx.out(`✔ Template ${elegido} copiado (${nombre}).`);
 
   let instalado = false;
   if (o.install) {
