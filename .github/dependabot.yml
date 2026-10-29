@@ -16,6 +16,7 @@ updates:
       - /packages/cli
       - /packages/create-store
       - /starter
+      - /starter-demo
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

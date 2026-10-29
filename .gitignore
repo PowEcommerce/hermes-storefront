@@ -9,8 +9,9 @@ out/
 next-env.d.ts
 *.tgz
 
-# El template de create-store se copia del starter/ en el prepack
+# Los templates de create-store se copian de starter/ y starter-demo/ en el prepack
 packages/create-store/template/
+packages/create-store/templates/
 
 # Variables de entorno: nunca se commitean (sí los .env.example, sin valores)
 .env*

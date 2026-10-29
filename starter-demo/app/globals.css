@@ -1,0 +1,278 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+ * UI kit de la demo.
+ *
+ * Todos los colores salen de la MARCA: lib/brand.ts lee storefront/config
+ * (tokens del checkout hosteado) y los pone como --brand-* en el <html>. Acá
+ * se traducen a los tokens del kit (--ui-*), que son los que usan los
+ * componentes (CSS modules) y las utilidades de Tailwind (bg-fg, text-muted-fg…).
+ * Para cambiar el look de la tienda alcanza con tocar este bloque.
+ * ------------------------------------------------------------------------- */
+:root {
+  --brand-font: initial;
+
+  --ui-fuente: var(--brand-font, var(--font-display)), var(--font-display), 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  --ui-negro: var(--brand-fg);          /* texto, íconos, líneas fuertes */
+  --ui-blanco: var(--brand-bg);         /* fondo */
+  --ui-primario: var(--brand-primary);  /* botón principal */
+  --ui-primario-texto: var(--brand-primary-fg);
+  --ui-tinta-2: var(--brand-muted-fg);  /* texto secundario, meta, breadcrumb */
+  --ui-gris-100: var(--brand-muted);    /* superficies: cajas, resumen del carrito */
+  --ui-gris-700: var(--brand-border);   /* bordes suaves, placeholders de imagen */
+  --ui-fondo-foto: color-mix(in srgb, var(--brand-fg) 7%, var(--brand-bg)); /* detrás de cada foto de producto */
+  --ui-oferta: #ff722d;                 /* precio en oferta y % OFF: cambialo por el de tu marca */
+  --ui-ok: var(--brand-accent);
+  --ui-error: var(--brand-danger);
+  --ui-radio: var(--brand-radius);
+  --ui-velo: rgba(0, 0, 0, 0.45);
+
+  /* Escala tipográfica: tamaño / peso / interlineado. */
+  --ui-t-display: 600 64px/1 var(--ui-fuente);
+  --ui-t-h1: 500 40px/1 var(--ui-fuente);
+  --ui-t-h2: 500 32px/1 var(--ui-fuente);
+  --ui-t-titulo: 400 24px/1.28 var(--ui-fuente);
+  --ui-t-nombre: 500 20px/1.28 var(--ui-fuente);
+  --ui-t-cta: 500 20px/1.28 var(--ui-fuente);
+  --ui-t-cuerpo: 400 16px/1.5 var(--ui-fuente);
+  --ui-t-cuerpo-m: 500 16px/1.28 var(--ui-fuente);
+  --ui-t-chico: 400 12px/1.28 var(--ui-fuente);
+  --ui-t-chico-m: 500 12px/1.28 var(--ui-fuente);
+
+  /* Movimiento: hovers 0,3 s, aperturas 0,5 s. */
+  --ui-mov-hover: 0.3s;
+  --ui-mov-apertura: 0.5s;
+  --ui-ease-salida: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Chrome */
+  --ui-header-alto: 80px;
+  --ui-header-alto-mobile: 64px;
+  --ui-sangria: 30px;
+  --ui-sangria-mobile: 16px;
+}
+
+/*
+ * Utilidades de Tailwind con los tokens del kit: bg-bg, text-fg, bg-primary,
+ * text-primary-fg, border-border, bg-muted, text-muted-fg, text-accent,
+ * text-danger, text-sale, rounded-brand y font-sans.
+ */
+@theme inline {
+  --color-bg: var(--ui-blanco);
+  --color-fg: var(--ui-negro);
+  --color-primary: var(--ui-primario);
+  --color-primary-fg: var(--ui-primario-texto);
+  --color-border: var(--ui-gris-700);
+  --color-muted: var(--ui-gris-100);
+  --color-muted-fg: var(--ui-tinta-2);
+  --color-accent: var(--ui-ok);
+  --color-danger: var(--ui-error);
+  --color-sale: var(--ui-oferta);
+  --radius-brand: var(--ui-radio);
+  --font-sans: var(--ui-fuente);
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--ui-fuente);
+  background: var(--ui-blanco);
+  color: var(--ui-negro);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Safari de iPhone hace zoom al enfocar un campo de menos de 16px. */
+@media (max-width: 991px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Clases del kit (tipografía, botón, campo, enlace). */
+.ui-t-display { font: var(--ui-t-display); letter-spacing: -0.02em; }
+.ui-t-h1 { font: var(--ui-t-h1); letter-spacing: -0.01em; }
+.ui-t-h2 { font: var(--ui-t-h2); }
+.ui-t-titulo { font: var(--ui-t-titulo); }
+.ui-t-nombre { font: var(--ui-t-nombre); }
+.ui-t-cuerpo { font: var(--ui-t-cuerpo); }
+.ui-t-cuerpo-m { font: var(--ui-t-cuerpo-m); }
+.ui-t-chico { font: var(--ui-t-chico); }
+.ui-t-chico-m { font: var(--ui-t-chico-m); }
+
+@media (max-width: 767px) {
+  .ui-t-display { font-size: 40px; }
+  .ui-t-h1 { font-size: 32px; }
+  .ui-t-h2 { font-size: 24px; }
+}
+
+/* Página con sangría (carrito, cuenta, búsqueda, estáticas). */
+.ui-pagina {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px var(--ui-sangria) 96px;
+}
+@media (max-width: 767px) {
+  .ui-pagina {
+    padding: 16px var(--ui-sangria-mobile) 64px;
+  }
+}
+
+.ui-solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Botón, enlace y campo del kit. En @layer components para que las
+   utilidades (w-full, h-10…) los pisen. `.btn`, `.btn-outline` e `.input`
+   son los nombres del skeleton: así las páginas de cuenta, carrito y checkout
+   heredan el look sin tocarlas. */
+@layer components {
+  /*
+   * Botón plano: 48 de alto, borde 2, 16/500. Hover: un anillo interior de 3px
+   * del color de contraste (no cambia el fondo ni mueve la caja).
+   */
+  .ui-boton,
+  .btn,
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0 24px;
+    border: 2px solid var(--ui-primario);
+    border-radius: var(--ui-radio);
+    background: var(--ui-primario);
+    color: var(--ui-primario-texto);
+    font: var(--ui-t-cuerpo-m);
+    white-space: nowrap;
+    cursor: pointer;
+    text-decoration: none;
+    --ui-anillo: var(--ui-primario-texto);
+    box-shadow: inset 0 0 0 0 var(--ui-anillo);
+    transition:
+      box-shadow 0.2s ease,
+      background var(--ui-mov-hover) ease-out,
+      color var(--ui-mov-hover) ease-out,
+      border-color var(--ui-mov-hover) ease-out;
+  }
+  .ui-boton:hover,
+  .ui-boton:focus-visible,
+  .btn:hover,
+  .btn:focus-visible,
+  .btn-outline:hover,
+  .btn-outline:focus-visible {
+    box-shadow: inset 0 0 0 3px var(--ui-anillo);
+    outline: none;
+  }
+  .ui-boton--secundario,
+  .btn-outline {
+    background: transparent;
+    border-color: var(--ui-negro);
+    color: var(--ui-negro);
+    --ui-anillo: var(--ui-negro);
+  }
+  .ui-boton--blanco {
+    background: #ffffff;
+    border-color: #ffffff;
+    color: #111111;
+    --ui-anillo: #111111;
+  }
+  .ui-boton--chico {
+    height: 40px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+  .ui-boton:disabled,
+  .ui-boton[aria-disabled='true'],
+  .btn:disabled,
+  .btn-outline:disabled {
+    opacity: 0.4;
+    cursor: default;
+    box-shadow: none;
+  }
+
+  .ui-enlace {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition: color var(--ui-mov-hover) ease-out;
+  }
+  .ui-enlace:hover,
+  .ui-enlace:focus-visible {
+    color: var(--ui-tinta-2);
+  }
+
+  .ui-campo,
+  .input {
+    display: block;
+    width: 100%;
+    height: 48px;
+    padding: 0 14px;
+    border: 1px solid var(--ui-negro);
+    border-radius: var(--ui-radio);
+    background: var(--ui-blanco);
+    color: var(--ui-negro);
+    font: var(--ui-t-cuerpo);
+    outline: none;
+  }
+  .ui-campo::placeholder,
+  .input::placeholder {
+    color: var(--ui-tinta-2);
+  }
+  .ui-campo:focus-visible,
+  .input:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--ui-negro);
+  }
+
+  .prose-html :where(p, ul, ol) {
+    @apply my-3;
+  }
+  .prose-html :where(ul) {
+    @apply list-disc pl-5;
+  }
+  .prose-html :where(ol) {
+    @apply list-decimal pl-5;
+  }
+  .prose-html :where(a) {
+    @apply underline underline-offset-2;
+  }
+  .prose-html :where(h1, h2, h3) {
+    @apply mt-6 mb-2 font-medium;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,21 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  CARPETA_EN_EL_REPO,
   CreateError,
+  TEMPLATES,
   VERSIONES_PUBLICADAS,
   type Ctx,
   ajustarPackageJson,
   binLocal,
   crear,
   detectarPm,
+  elegirTemplate,
+  parsear,
   nombreDePaquete,
 } from '../src/create';
 import { NPMRC_TIENDA, copiarTemplate, seCopia } from '../src/template';
 
 const STARTER = fileURLToPath(new URL('../../../starter', import.meta.url));
+const RAIZ = fileURLToPath(new URL('../../../', import.meta.url));
 
 /** Un template chico que imita al starter (con todo lo que NO se tiene que copiar). */
 async function templateFalso() {
@@ -168,7 +173,7 @@ describe('create-store', () => {
   }
 
   it('con la CLI logueada ofrece `hermes link` y lo corre con la CLI instalada en el proyecto', async () => {
-    const pre = conInstallDeLaCli(await ctxDePrueba({ interactive: true, respuestas: [''] }));
+    const pre = conInstallDeLaCli(await ctxDePrueba({ interactive: true, respuestas: ['', ''] }));
     await loguearCli(pre.ctx.env.HERMES_CONFIG_DIR!);
     expect(await crear(['tienda'], pre.ctx)).toBe(0);
     expect(pre.corridas.map((c) => [c.cmd, ...c.args].join(' '))).toEqual(['npm install', `${binLocal(pre.cwd + '/tienda')} link`]);
@@ -194,14 +199,14 @@ describe('create-store', () => {
   });
 
   it('si el install no dejó la CLI del proyecto, linkea con la publicada', async () => {
-    const pre = await ctxDePrueba({ interactive: true, respuestas: ['s'] });
+    const pre = await ctxDePrueba({ interactive: true, respuestas: ['1', 's'] });
     await loguearCli(pre.ctx.env.HERMES_CONFIG_DIR!);
     await crear(['tienda'], pre.ctx);
     expect(pre.corridas.map((c) => [c.cmd, ...c.args].join(' '))).toEqual(['npm install', 'npx --yes @hermesecommerce/cli@^0 link']);
   });
 
   it('con la CLI logueada y "n", no linkea', async () => {
-    const pre = await ctxDePrueba({ interactive: true, respuestas: ['n'] });
+    const pre = await ctxDePrueba({ interactive: true, respuestas: ['', 'n'] });
     await loguearCli(pre.ctx.env.HERMES_CONFIG_DIR!);
     await crear(['tienda'], pre.ctx);
     expect(pre.corridas).toHaveLength(1);
@@ -234,6 +239,75 @@ describe('create-store', () => {
     const { ctx } = await ctxDePrueba();
     await expect(crear(['--pm', 'maven'], ctx)).rejects.toThrow(/--pm/);
     await expect(crear(['--nada'], ctx)).rejects.toThrow(/desconocida/);
+  });
+});
+
+describe('templates (demo | skeleton)', () => {
+  /** Dos templates falsos distinguibles por un archivo propio. */
+  async function dosTemplates() {
+    const dir = await mkdtemp(join(tmpdir(), 'hermes-tpls-'));
+    for (const t of TEMPLATES) {
+      const tpl = await templateFalso();
+      await writeFile(join(tpl, `soy-${t}.txt`), t);
+      await cp(tpl, join(dir, t), { recursive: true });
+    }
+    return dir;
+  }
+
+  async function crearCon(argv: string[], opts: Parameters<typeof ctxDePrueba>[0] = {}) {
+    const t = await ctxDePrueba(opts);
+    delete t.ctx.templateDir;
+    t.ctx.templatesDir = await dosTemplates();
+    await crear([...argv, '--no-install'], t.ctx);
+    return { ...t, archivos: await readdir(join(t.cwd, 'tienda')) };
+  }
+
+  it('sin terminal y sin --template: demo', async () => {
+    const { archivos, out } = await crearCon(['tienda']);
+    expect(archivos).toContain('soy-demo.txt');
+    expect(out.join('\n')).toContain('template demo');
+    expect(out.join('\n')).not.toContain('¿Con qué template?');
+  });
+
+  it('--template skeleton y --template=demo', async () => {
+    expect((await crearCon(['tienda', '--template', 'skeleton'])).archivos).toContain('soy-skeleton.txt');
+    expect((await crearCon(['tienda', '--template=demo'])).archivos).toContain('soy-demo.txt');
+    expect((await crearCon(['tienda', '-t', 'skeleton'])).archivos).toContain('soy-skeleton.txt');
+  });
+
+  it('con terminal pregunta, con demo por defecto', async () => {
+    const a = await crearCon(['tienda'], { interactive: true, respuestas: [''] });
+    expect(a.out.join('\n')).toContain('¿Con qué template?');
+    expect(a.archivos).toContain('soy-demo.txt');
+    expect((await crearCon(['tienda'], { interactive: true, respuestas: ['2'] })).archivos).toContain('soy-skeleton.txt');
+    expect((await crearCon(['tienda'], { interactive: true, respuestas: ['skeleton'] })).archivos).toContain('soy-skeleton.txt');
+  });
+
+  it('con --template no pregunta aunque haya terminal', async () => {
+    const a = await crearCon(['tienda', '--template', 'demo'], { interactive: true });
+    expect(a.out.join('\n')).not.toContain('¿Con qué template?');
+  });
+
+  it('un template que no existe falla', () => {
+    expect(() => parsear(['--template', 'otro'])).toThrow(/--template/);
+    expect(() => parsear(['--template'])).toThrow(/--template/);
+  });
+
+  it('elegirTemplate', async () => {
+    const ask = async () => '';
+    expect(await elegirTemplate({}, { interactive: false, ask })).toBe('demo');
+    expect(await elegirTemplate({ template: 'skeleton' }, { interactive: true, ask })).toBe('skeleton');
+  });
+
+  it('los dos templates del repo existen y sus file: tienen versión publicada', async () => {
+    for (const t of TEMPLATES) {
+      const pkg = JSON.parse(await readFile(join(RAIZ, CARPETA_EN_EL_REPO[t], 'package.json'), 'utf8'));
+      expect(() => ajustarPackageJson(pkg, 'x')).not.toThrow();
+      expect(pkg.scripts).toMatchObject({ dev: 'hermes dev', 'dev:next': 'next dev', build: 'next build', deploy: 'hermes deploy', hermes: 'hermes' });
+      expect(pkg.devDependencies.vitest).toBe('^4.1.12');
+      expect(await readFile(join(RAIZ, CARPETA_EN_EL_REPO[t], '.npmrc'), 'utf8')).toMatch(/^legacy-peer-deps=true$/m);
+      expect(await readFile(join(RAIZ, CARPETA_EN_EL_REPO[t], '.gitignore'), 'utf8')).toMatch(/^\.env\*$/m);
+    }
   });
 });
 

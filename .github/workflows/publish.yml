@@ -234,7 +234,7 @@ jobs:
             fi
           fi
 
-      # npm pack corre el prepack (build; en create además la copia del template).
+      # npm pack corre el prepack (build; en create además la copia de los templates).
       # Este .tgz es EXACTAMENTE lo que publica el job `publish`.
       - name: Tarball (npm pack)
         id: pack

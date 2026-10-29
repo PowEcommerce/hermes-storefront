@@ -1,0 +1,169 @@
+.footer {
+  position: relative;
+  background: var(--ui-negro);
+  color: color-mix(in srgb, var(--ui-blanco) 86%, var(--ui-negro));
+  padding: 6px 7px 0;
+  overflow: hidden;
+}
+
+/* ---- Marquee: corre solo con CSS (la pista va duplicada: -50% es un loop exacto). */
+.marquee {
+  height: 41px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ui-blanco) 86%, var(--ui-negro));
+  color: var(--ui-negro);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.pista {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  width: max-content;
+  animation: corre 40s linear infinite;
+}
+
+.marquee:hover .pista {
+  animation-play-state: paused;
+}
+
+@keyframes corre {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.itemTexto {
+  font: 400 24px/25px var(--ui-fuente);
+  white-space: nowrap;
+}
+
+.estrella {
+  display: block;
+  animation: gira 15s linear infinite;
+}
+
+@keyframes gira {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pista,
+  .estrella {
+    animation: none;
+  }
+}
+
+/* ---- Links grandes ------------------------------------------------------ */
+.links {
+  margin-top: 7px;
+  padding: 28px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+}
+
+.link {
+  font: var(--ui-t-h2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.link:hover,
+.link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ---- El nombre de la marca a lo ancho ---------------------------------- */
+.marca {
+  margin-top: 6px;
+  width: 100%;
+}
+
+.wordmark {
+  display: block;
+  font: 700 19vw/0.85 var(--ui-fuente);
+  letter-spacing: -0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.logo {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  object-position: left center;
+  filter: brightness(0) invert(1);
+  opacity: 0.86;
+}
+
+/* ---- Legales ----------------------------------------------------------- */
+.abajo {
+  margin-top: 16px;
+  padding: 12px 0 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  font: var(--ui-t-chico);
+}
+
+.legales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.legal {
+  color: inherit;
+  text-decoration: none;
+}
+
+.legal:hover,
+.legal:focus-visible {
+  text-decoration: underline;
+}
+
+.copyright {
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .footer {
+    padding: 12px 12px 0;
+  }
+
+  .marquee {
+    height: 40px;
+  }
+
+  .itemTexto {
+    font-size: 18px;
+  }
+
+  .links {
+    flex-direction: column;
+    padding: 24px 0;
+  }
+
+  .link {
+    font-size: 24px;
+  }
+
+  .abajo {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
