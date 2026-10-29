@@ -1,0 +1,384 @@
+/* ---- Cabecera ---------------------------------------------------------- */
+.cabecera {
+  padding: 16px var(--ui-sangria) 16px;
+}
+
+.titulo {
+  margin: 8px 0 0;
+  font: var(--ui-t-titulo);
+  text-wrap: balance;
+}
+
+.bajada {
+  max-width: 64ch;
+  margin: 8px 0 0;
+  font: var(--ui-t-cuerpo);
+  color: var(--ui-tinta-2);
+}
+
+.listado {
+  padding: 0 var(--ui-sangria) 96px;
+}
+
+/* ---- Barra: pegada debajo del header ----------------------------------- */
+.toolbar {
+  position: sticky;
+  top: var(--ui-header-alto);
+  z-index: 50;
+  padding: 0 var(--ui-sangria) 26px;
+  pointer-events: none;
+}
+
+.franja {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ui-gris-700);
+  background: var(--ui-blanco);
+  pointer-events: auto;
+}
+
+.izquierda,
+.derecha {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.filtrar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: var(--ui-t-cuerpo-m);
+  color: var(--ui-negro);
+  cursor: pointer;
+}
+
+.filtrar:hover,
+.filtrar:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  outline: none;
+}
+
+.contador {
+  font: var(--ui-t-cuerpo);
+  color: var(--ui-tinta-2);
+}
+
+/* Chip del kit: 32 de alto, borde 1, 14/400. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--ui-negro);
+  background: var(--ui-blanco);
+  font: var(--ui-t-chico);
+  font-size: 14px;
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--ui-mov-hover) ease-out, color var(--ui-mov-hover) ease-out;
+}
+
+.chip::-webkit-details-marker {
+  display: none;
+}
+
+.chip:hover,
+.ordenar[open] > .chip {
+  background: var(--ui-negro);
+  color: var(--ui-blanco);
+}
+
+.ordenar {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 60;
+  min-width: 215px;
+  margin: 0;
+  padding: 8px 0;
+  list-style: none;
+  background: var(--ui-blanco);
+  border: 1px solid var(--ui-gris-700);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.opcionOrden {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font: var(--ui-t-cuerpo);
+  color: var(--ui-negro);
+  text-decoration: none;
+}
+
+.opcionOrden:hover {
+  background: var(--ui-gris-100);
+}
+
+.radio {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--ui-negro);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.opcionOrdenActiva .radio {
+  box-shadow: inset 0 0 0 3px var(--ui-blanco);
+  background: var(--ui-negro);
+}
+
+/* Filtros aplicados: píldoras que los quitan. */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: auto;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 14px;
+  background: var(--ui-gris-100);
+  font: var(--ui-t-chico);
+  font-size: 13px;
+  color: var(--ui-negro);
+  text-decoration: none;
+}
+
+.tag:hover {
+  background: var(--ui-gris-700);
+}
+
+/* ---- Panel lateral de filtros ------------------------------------------ */
+.velo {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: var(--ui-velo);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+}
+
+.veloVisible {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.35s ease-out, visibility 0s linear 0s;
+}
+
+.panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1101;
+  width: min(420px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--ui-blanco);
+  color: var(--ui-negro);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition: transform var(--ui-mov-apertura) var(--ui-ease-salida), visibility 0s linear var(--ui-mov-apertura);
+}
+
+.panelAbierto {
+  transform: none;
+  visibility: visible;
+  transition: transform var(--ui-mov-apertura) var(--ui-ease-salida), visibility 0s linear 0s;
+}
+
+.panelCabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--ui-gris-700);
+}
+
+.cerrar {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.filtros {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.facetas {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 24px;
+}
+
+.sinFacetas {
+  padding: 24px 0;
+  font: var(--ui-t-cuerpo);
+  color: var(--ui-tinta-2);
+}
+
+.faceta {
+  border-bottom: 1px solid var(--ui-gris-700);
+}
+
+.facetaTitulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+  font: var(--ui-t-cuerpo-m);
+  cursor: pointer;
+  list-style: none;
+}
+
+.facetaTitulo::-webkit-details-marker {
+  display: none;
+}
+
+.facetaTitulo::after {
+  content: '+';
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.faceta[open] > .facetaTitulo::after {
+  content: '−';
+}
+
+.facetaCantidad {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--ui-negro);
+  color: var(--ui-blanco);
+  font: 500 11px/20px var(--ui-fuente);
+  text-align: center;
+}
+
+.opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 0 16px;
+}
+
+/* Cada opción es una caja del kit; la elegida, invertida. */
+.opcion {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--ui-negro);
+  border-radius: var(--ui-radio);
+  font: var(--ui-t-chico);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--ui-mov-hover) ease-out, color var(--ui-mov-hover) ease-out;
+}
+
+.opcion:has(:checked) {
+  background: var(--ui-negro);
+  color: var(--ui-blanco);
+}
+
+.opcion:has(:focus-visible) {
+  box-shadow: inset 0 0 0 2px var(--ui-negro);
+}
+
+.casilla {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.opcionColor {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--ui-gris-700);
+}
+
+.opcionTotal {
+  opacity: 0.6;
+}
+
+.filtrosPie {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--ui-gris-700);
+}
+
+.aplicar {
+  flex: 1;
+}
+
+@media (max-width: 767px) {
+  .cabecera {
+    padding: 12px var(--ui-sangria-mobile);
+  }
+
+  .listado {
+    padding: 0 var(--ui-sangria-mobile) 64px;
+  }
+
+  .toolbar {
+    top: var(--ui-header-alto-mobile);
+    padding: 0 var(--ui-sangria-mobile) 16px;
+  }
+
+  .contador {
+    display: none;
+  }
+
+  .dropdown {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    min-width: 0;
+    padding: 16px 0 24px;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+  }
+}

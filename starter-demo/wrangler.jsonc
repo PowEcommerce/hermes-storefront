@@ -1,0 +1,11 @@
+// Config mínima para `hermes deploy`: el build de @opennextjs/cloudflare.
+// No hace falta una cuenta de Cloudflare: Hermes despliega en la de Pow
+// (`wrangler deploy --dry-run` sólo empaqueta). Las variables HERMES_* las
+// pone el hosting a partir de tu .env (no las cargues acá).
+{
+  "name": "hermes-store",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" }
+}

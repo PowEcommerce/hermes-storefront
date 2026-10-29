@@ -1,0 +1,173 @@
+/* Contenedor fijo: la barra + el mega-menú colgando debajo. Blanco por defecto. */
+.contenedor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  color: var(--ui-negro);
+  --header-fondo: var(--ui-blanco);
+  --header-hover: color-mix(in srgb, var(--ui-negro) 6%, transparent);
+  --header-badge-fondo: var(--ui-negro);
+  --header-badge-texto: var(--ui-blanco);
+  transition: color 0.3s ease-out;
+}
+
+/* Sobre un hero (la página tiene un [data-hero]) y sin nada que lo vuelva
+   sólido: transparente, en blanco (o en negro con tono dark). El hover también
+   lo vuelve blanco. */
+:global(body:has([data-hero])) .contenedor:not(.solido):not(:hover):not(:focus-within) {
+  color: #ffffff;
+  --header-fondo: transparent;
+  --header-hover: rgba(255, 255, 255, 0.18);
+  --header-badge-fondo: #ffffff;
+  --header-badge-texto: #111111;
+}
+
+:global(body:has([data-hero])) .contenedor[data-tono='dark']:not(.solido):not(:hover):not(:focus-within) {
+  color: #111111;
+  --header-hover: rgba(0, 0, 0, 0.06);
+  --header-badge-fondo: #111111;
+  --header-badge-texto: #ffffff;
+}
+
+/* Logo de imagen sobre el hero claro: se pinta de blanco. */
+:global(body:has([data-hero])) .contenedor[data-tono='light']:not(.solido):not(:hover):not(:focus-within) .logoImagen {
+  filter: brightness(0) invert(1);
+}
+
+.header {
+  position: relative;
+  height: var(--ui-header-alto);
+  padding: 0 var(--ui-sangria);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: var(--header-fondo);
+  transition: background 0.3s ease-out;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.logoImagen {
+  display: block;
+  height: 36px;
+  width: auto;
+  max-width: 180px;
+  object-fit: contain;
+  transition: filter 0.3s ease-out;
+}
+
+.logoTexto {
+  font: 600 24px/1 var(--ui-fuente);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iconos {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Ícono de 24 con una caja de hover de 32 (radio 4, fondo apenas marcado y
+   blur), sin mover la geometría. */
+.icono {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.icono::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 4px;
+  background-color: transparent;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: background-color 0.33s;
+  pointer-events: none;
+}
+
+.icono:hover::before,
+.icono:focus-visible::before {
+  background-color: var(--header-hover);
+}
+
+.icono:focus-visible {
+  outline: none;
+}
+
+.icono > svg {
+  position: relative;
+}
+
+/* Cantidad del carrito, arriba a la derecha de la bolsa. */
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--header-badge-fondo);
+  color: var(--header-badge-texto);
+  font: 500 10px/16px var(--ui-fuente);
+  text-align: center;
+  pointer-events: none;
+}
+
+.soloMobile {
+  display: none;
+}
+
+.espaciador {
+  height: var(--ui-header-alto);
+}
+
+@media (max-width: 767px) {
+  .header {
+    height: var(--ui-header-alto-mobile);
+    padding: 0 var(--ui-sangria-mobile);
+  }
+
+  .logoImagen {
+    height: 28px;
+    max-width: 140px;
+  }
+
+  .logoTexto {
+    font-size: 20px;
+  }
+
+  .soloDesktop {
+    display: none;
+  }
+
+  .soloMobile {
+    display: flex;
+  }
+
+  .espaciador {
+    height: var(--ui-header-alto-mobile);
+  }
+}
