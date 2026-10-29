@@ -30,7 +30,7 @@ npm install -g @hermesecommerce/cli    # 1. una sola vez por máquina (como `@sh
 hermes create mi-marca                 # 2. = npm create @hermesecommerce/store mi-marca
 cd mi-marca                            # 3.
 hermes login                           # 4. tu usuario del backoffice (una vez por máquina)
-hermes link                            # 5. elegís la marca → tokens HERMES_* en .env
+hermes link                            # 5. elegís la marca → su proyecto + tokens HERMES_* en .env
 hermes dev                             # 6. http://localhost:3000 con los datos de la marca
 hermes deploy                          # 7. publicar en el hosting de Hermes
 hermes domains add www.mi-marca.com    # 8. tu dominio (o desde el admin: Configuración → Dominios)
@@ -103,7 +103,8 @@ hermes rollback 11                  # volver a la versión del deploy #11
   al build (p. ej. `NEXT_PUBLIC_*`), no al runtime. El dominio del deploy se
   suma solo a los dominios del token público de la tienda (checkout y CORS).
 - **Previews**: una por branch, con URL propia; conviven con producción.
-  El plan fija cuántas previews activas y proyectos podés tener;
+  El plan fija cuántas previews activas y proyectos podés tener (una tienda
+  es un proyecto: ver [Trabajar en equipo](#trabajar-en-equipo));
   `hermes deployments rm --branch <x>` borra una.
 - **Rollback**: vuelve a subir la versión guardada de ese deploy (con los
   tokens vigentes de la tienda). Se puede volver a cualquier deploy que haya
@@ -203,9 +204,18 @@ hermes mail-domains remove mitienda.com
 
 ### Trabajar en equipo
 
-Varios developers con acceso a la marca trabajan sobre la misma tienda, como
-con Hydrogen/Oxygen:
+Una tienda tiene **un proyecto**, y varios developers con acceso a la marca
+trabajan sobre él, como con Hydrogen/Oxygen:
 
+- **Un proyecto, no uno por persona.** `hermes link` usa el proyecto que la
+  marca ya tiene (si tiene uno, sin preguntar el nombre; si tiene varios,
+  elegís de la lista). No crees otro con tu nombre: el plan fija cuántos
+  proyectos puede tener la marca (muchas veces, 1) y uno nuevo no se podría
+  deployar. Si te pasás del tope con `--name`, el link te lo dice y te
+  sugiere el que existe.
+- **Tu branch → `hermes deploy --preview`.** Cada uno trabaja en su branch
+  de git y la publica en su URL de preview.
+- **Producción → `main` desde CI** con `hermes deploy-token` (abajo).
 - **El código, por git.** Commiteá `.hermes/project.json` (marca, proyecto y
   API, sin secretos): así todos —y el CI— deployan al mismo proyecto. El
   `.env` no se commitea.

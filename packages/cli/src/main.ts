@@ -38,9 +38,12 @@ Uso: hermes <comando> [opciones]
   logout                Cerrar la sesión (revoca el token de la CLI)
   whoami [--json]       Quién sos y a qué marcas tenés acceso
   link                  Linkear esta carpeta a una marca: crea TUS tokens de
-                        desarrollo (personales) y los escribe en .env
+                        desarrollo (personales) y los escribe en .env. Usa el
+                        proyecto de la marca si ya existe (una tienda, un
+                        proyecto: el equipo trabaja con branches y previews)
       --tenant <marca>  Sin elegir de la lista
-      --name <nombre>   Nombre del proyecto (default: el del package.json)
+      --name <nombre>   Forzar un proyecto (si no hay ninguno, default: el del
+                        package.json)
       --domain <host>   Dominio del storefront (repetible): return_url del
                         checkout y CORS desde el navegador
       --no-private      Sin token privado (psk_)

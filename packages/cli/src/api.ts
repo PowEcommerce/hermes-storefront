@@ -68,6 +68,23 @@ export interface LinkResult {
   env: Record<string, string>;
 }
 
+/** Un proyecto de la marca (GET /cli/tenants/:t/projects). */
+export interface ProyectoDeMarca {
+  /** El slug del proyecto (el `project` del hosting y de los tokens). */
+  name: string;
+  production_url: string | null;
+  last_deploy_at: string | null;
+  /** Tiene deploys en el hosting: cuenta para `max_projects`. */
+  has_hosting: boolean;
+}
+
+export interface ProyectosDeMarca {
+  projects: ProyectoDeMarca[];
+  /** Tope de proyectos en el hosting del plan (null: el plan no tiene hosting). */
+  max_projects: number | null;
+  hosting_enabled: boolean;
+}
+
 /** Un dominio de «Autenticar dominio» de mails (GET /cli/tenants/:t/mail-domains). */
 export interface DominioDeMail {
   domain: string;
@@ -342,6 +359,22 @@ export class HermesApi {
       `/cli/tenants/${encodeURIComponent(tenant)}/link`,
       body,
     );
+  }
+
+  /**
+   * Los proyectos de la marca. null si la API todavía no tiene el endpoint
+   * (404 de una API vieja): `hermes link` pregunta el nombre como antes.
+   */
+  async proyectos(tenant: string): Promise<ProyectosDeMarca | null> {
+    try {
+      return await this.pedir<ProyectosDeMarca>(
+        'GET',
+        `/cli/tenants/${encodeURIComponent(tenant)}/projects`,
+      );
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 404 || e.status === 405)) return null;
+      throw e;
+    }
   }
 
   tokens(tenant: string) {
