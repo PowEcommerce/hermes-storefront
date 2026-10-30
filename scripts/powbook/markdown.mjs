@@ -3,13 +3,14 @@
 //
 // El spec es una lista de bloques: ["parrafo", texto], ["titulo", texto, {}],
 // ["titulo3", texto], ["paso", n, texto], ["lista", [textos]],
-// ["callout", texto, estilo], ["codigo", texto, lenguaje] y ["tabla", filas].
+// ["callout", texto, estilo, titulo?], ["codigo", texto, lenguaje] y ["tabla", filas].
 // El inline (negrita, itálica, `código` y [links](url)) queda en Markdown:
 // Powbook lo arma.
 //
 // Cubre lo que usan los .md de este repo: títulos, párrafos, listas (con un
 // nivel de anidado), bloques de código (también dentro de una lista), tablas,
-// citas (`> **Ojo:** …` → aviso) y contenedores de VitePress (`::: warning`).
+// citas (`> …` → cita, `> [!WARNING]` → aviso) y contenedores de VitePress
+// (`::: warning Título` → aviso con título), como los muestra el sitio.
 // ============================================================
 
 /** El slug de un título, igual al de VitePress (y al de las anclas de Powbook). */
@@ -115,17 +116,9 @@ export function inline(texto, resolver) {
 
 // ───────────── Bloques ─────────────
 
-const AVISOS = [
-  { re: /^\*\*(ojo|atenci[oó]n|cuidado|importante|limitaci[oó]n[^*]*|no )/i, estilo: 'warning' },
-  { re: /^\*\*(tip|consejo|recomendado)/i, estilo: 'success' },
-  { re: /^\*\*(peligro|nunca)/i, estilo: 'danger' },
-];
-
-function estiloDeCita(texto) {
-  return AVISOS.find((a) => a.re.test(texto))?.estilo ?? 'info';
-}
-
-const CONTENEDOR = { tip: 'success', info: 'info', warning: 'warning', danger: 'danger', details: 'info', note: 'info' };
+// Los custom blocks de VitePress (y las alertas de GitHub) → el estilo del aviso.
+// El workspace de Powbook es de documentación técnica: tip y cita existen tal cual.
+const CONTENEDOR = { tip: 'tip', info: 'info', warning: 'warning', danger: 'danger', details: 'info', note: 'info', important: 'tip', caution: 'danger' };
 
 function filas(bloque) {
   const celdas = (l) => {
@@ -230,9 +223,9 @@ export function aSpec(md, { resolver, niveles = { 1: null, 2: 'titulo', 3: 'titu
       i++;
       while (i < ls.length && !/^:::\s*$/.test(ls[i].texto)) cuerpo.push(ls[i++].texto);
       i++;
-      const titulo = cont[2].trim();
-      const texto = [titulo ? `**${titulo}.**` : '', inl(cuerpo.join(' '))].filter(Boolean).join(' ');
-      spec.push(['callout', texto, CONTENEDOR[cont[1]] ?? 'info']);
+      const titulo = textoPlano(cont[2].trim());
+      const texto = inl(cuerpo.join(' ')) || titulo;
+      spec.push(titulo ? ['callout', texto, CONTENEDOR[cont[1]] ?? 'info', titulo] : ['callout', texto, CONTENEDOR[cont[1]] ?? 'info']);
       continue;
     }
 
@@ -243,8 +236,10 @@ export function aSpec(md, { resolver, niveles = { 1: null, 2: 'titulo', 3: 'titu
         cuerpo.push(ls[i].texto.replace(/^\s*>\s?/, ''));
         i++;
       }
-      const texto = inl(cuerpo.join(' ').replace(/^\[!(\w+)\]\s*/, ''));
-      if (texto) spec.push(['callout', texto, estiloDeCita(texto)]);
+      // `> [!WARNING]` (alerta de GitHub, VitePress la muestra como aviso); si no, una cita.
+      const alerta = cuerpo.join(' ').match(/^\s*\[!(\w+)\]\s*/);
+      const texto = inl(cuerpo.join(' ').replace(/^\s*\[!(\w+)\]\s*/, ''));
+      if (texto) spec.push(['callout', texto, alerta ? (CONTENEDOR[alerta[1].toLowerCase()] ?? 'info') : 'cita']);
       continue;
     }
 

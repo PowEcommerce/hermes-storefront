@@ -1,9 +1,12 @@
 // ============================================================
 // OpenAPI → páginas de referencia de Powbook (una por grupo/tag).
 //
-// Estático, como Redoc pero sin «try it»: por operación, el método y la ruta,
-// la descripción, la autenticación, los parámetros, el cuerpo, las respuestas
-// y un ejemplo de respuesta armado desde el schema (no se le pega a la API).
+// Cada operación es un bloque ["api_operacion", {…}] que Powbook muestra como
+// Redoc (workspace de documentación técnica): al centro la descripción, la
+// autenticación, los parámetros, el cuerpo y las respuestas con su schema
+// desplegable; a la derecha el método con la ruta y los ejemplos (armados desde
+// el schema, como Redoc). Estático: no tiene «try it» ni le pega a la API.
+// Los $ref se resuelven acá: Powbook recibe cada schema como árbol de campos.
 // ============================================================
 import { aSpec, inline } from './markdown.mjs';
 
@@ -34,55 +37,9 @@ export function crearReferencia(doc, { resolver }) {
     return s;
   };
 
-  /** El tipo de un schema, en una línea: `string (date-time)`, `Producto[]`, `"a" | "b"`. */
-  function tipo(s, prof = 0) {
-    if (!s) return '';
-    if (s.$ref) return s.$ref.split('/').pop();
-    if (prof > 3) return 'object';
-    if (s.const !== undefined) return JSON.stringify(s.const);
-    if (s.enum) {
-      const v = s.enum.map((x) => JSON.stringify(x));
-      return v.length > 6 ? `${v.slice(0, 6).join(' | ')} | …` : v.join(' | ');
-    }
-    const alternativas = s.oneOf ?? s.anyOf;
-    if (alternativas) return alternativas.map((a) => tipo(a, prof + 1)).join(' | ');
-    if (s.allOf) return s.allOf.map((a) => tipo(a, prof + 1)).join(' & ');
-    let t = Array.isArray(s.type) ? s.type.join(' | ') : s.type;
-    if (t === 'array' || (Array.isArray(s.type) && s.type.includes('array'))) {
-      const item = tipo(s.items, prof + 1) || 'any';
-      t = String(t).replace('array', `${/[ |&]/.test(item) ? `(${item})` : item}[]`);
-    }
-    if (!t) t = s.properties ? 'object' : 'any';
-    if (s.format) t += ` (${s.format})`;
-    if (s.nullable) t += ' | null';
-    return t;
-  }
-
   const unaLinea = (t) => (t ?? '').replace(/\s+/g, ' ').trim();
   const celda = (t) => inline(unaLinea(t), resolver);
   const codigo = (t) => `\`${t.replace(/`/g, "'")}\``;
-
-  /** Los campos de un objeto como filas de tabla (con un nivel de anidado: `padre.hijo`). */
-  function campos(s, prefijo = '', prof = 0, filas = []) {
-    const o = deref(s);
-    const props = o.properties ?? {};
-    const requeridos = new Set(o.required ?? []);
-    for (const [nombre, sub] of Object.entries(props)) {
-      const r = deref(sub);
-      filas.push([
-        codigo(prefijo + nombre),
-        codigo(tipo(sub)),
-        requeridos.has(nombre) ? 'sí' : '',
-        celda(r.description ?? sub.description ?? ''),
-      ]);
-      if (prof < 1) {
-        if (r.type === 'object' && r.properties) campos(r, `${prefijo}${nombre}.`, prof + 1, filas);
-        const it = r.items ? deref(r.items) : null;
-        if (it?.properties) campos(it, `${prefijo}${nombre}[].`, prof + 1, filas);
-      }
-    }
-    return filas;
-  }
 
   /** Un ejemplo armado desde el schema (como el de Redoc): el `example` si hay, si no un valor de su tipo. */
   function ejemplo(s, prof = 0, visto = new Set()) {
@@ -127,78 +84,171 @@ export function crearReferencia(doc, { resolver }) {
 
   const json = (v) => JSON.stringify(v, null, 2);
 
-  function autenticacion(op) {
-    const reglas = op.security ?? doc.security;
-    if (!reglas || !reglas.length) return null;
-    if (reglas.every((r) => !Object.keys(r).length)) return 'Sin autenticación.';
-    const alternativas = reglas
-      .filter((r) => Object.keys(r).length)
-      .map((r) =>
-        Object.keys(r)
-          .map((k) => codigo(seguridad[k]?.name ?? k))
-          .join(' + '),
-      );
-    return `**Autenticación:** ${alternativas.join(' o ')}.`;
+  // ───────────── api_operacion ─────────────
+
+  const MAX_PROF = 8;
+  const nombreRef = (s) => (s?.$ref ? s.$ref.split('/').pop() : null);
+  const sinNull = (s) => {
+    const alt = s?.oneOf ?? s?.anyOf;
+    if (!alt) return s;
+    const reales = alt.filter((a) => a.type !== 'null');
+    return reales.length === 1 ? reales[0] : s;
+  };
+  const admiteNull = (s) =>
+    !!(s?.nullable || (Array.isArray(s?.type) && s.type.includes('null')) || (s?.oneOf ?? s?.anyOf)?.some((a) => a.type === 'null'));
+
+  /** El tipo como lo muestra Redoc, en castellano: `string <date-time>`, `Lista de objetos (CarritoLinea)`, `integer o null`. */
+  function tipoRedoc(s0, prof = 0) {
+    if (!s0) return 'any';
+    const s = sinNull(s0);
+    const nulo = admiteNull(s0) ? ' o null' : '';
+    const ref = nombreRef(s);
+    const d = deref(s);
+    if (d.const !== undefined) return `valor: ${JSON.stringify(d.const)}${nulo}`;
+    const alt = d.oneOf ?? d.anyOf;
+    if (alt && prof < 3) return alt.map((a) => tipoRedoc(a, prof + 1)).join(' o ') + nulo;
+    const t = Array.isArray(d.type) ? d.type.filter((x) => x !== 'null') : [d.type];
+    if (t.includes('array') || d.items) {
+      const it = d.items ?? {};
+      const itRef = nombreRef(sinNull(it));
+      const itD = deref(it);
+      if (itD.properties || itD.type === 'object') return `Lista de objetos${itRef ? ` (${itRef})` : ''}${nulo}`;
+      return `Lista de ${tipoRedoc(it, prof + 1)}${nulo}`;
+    }
+    if (d.properties || t.includes('object')) return `object${ref ? ` (${ref})` : ''}${nulo}`;
+    let base = t.filter(Boolean).join(' o ') || 'any';
+    if (d.format) base += ` <${d.format}>`;
+    return base + nulo;
   }
 
+  const md = (t) =>
+    (t ?? '')
+      .split('\n')
+      .map((l) => {
+        const m = l.match(/^(\s*(?:[-*+]|\d+[.)])\s+)(.*)$/);
+        return m ? `${m[1].trim()} ${inline(m[2], resolver)}` : inline(l, resolver);
+      })
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  const valorTexto = (v) => (v === undefined ? undefined : typeof v === 'string' ? v : JSON.stringify(v));
+  const sinVacios = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== '' && v !== false && !(Array.isArray(v) && !v.length)));
+
+  /** El objeto (o el ítem de la lista) que tiene los campos de un schema, o null. */
+  function objetoDe(s) {
+    const d = deref(sinNull(s));
+    if (d.properties) return d;
+    if (d.items) return objetoDe(d.items);
+    const alt = d.oneOf ?? d.anyOf;
+    if (alt) {
+      const conCampos = alt.map((a) => deref(a)).find((a) => a.properties);
+      return conCampos ?? null;
+    }
+    return null;
+  }
+
+  /** Los campos de un schema como árbol (Redoc), cortando los ciclos de $ref. */
+  function campos(s, visto = new Set(), prof = 0) {
+    const o = objetoDe(s);
+    if (!o) return [];
+    const req = new Set(o.required ?? []);
+    return Object.entries(o.properties ?? {}).map(([nombre, sub]) => {
+      const d = deref(sinNull(sub));
+      const refHijo = nombreRef(sinNull(sub)) ?? nombreRef(sinNull(d.items ?? {}));
+      const ciclo = refHijo && visto.has(refHijo);
+      const hijos = !ciclo && prof < MAX_PROF ? campos(sub, refHijo ? new Set([...visto, refHijo]) : visto, prof + 1) : [];
+      return sinVacios({
+        nombre,
+        tipo: tipoRedoc(sub),
+        requerido: req.has(nombre),
+        descripcion: md(d.description ?? sub.description ?? ''),
+        valores: (d.enum ?? (d.items ? deref(d.items).enum : undefined))?.map((v) => JSON.stringify(v)),
+        defecto: valorTexto(d.default),
+        ejemplo: d.example !== undefined && typeof d.example !== 'object' ? valorTexto(d.example) : undefined,
+        hijos,
+      });
+    });
+  }
+
+  const schemaApi = (s) => sinVacios({ tipo: tipoRedoc(s), descripcion: md(deref(s).description ?? ''), campos: campos(s) });
+
+  function ejemploDe(contenido) {
+    if (!contenido) return undefined;
+    const ej =
+      contenido.example ??
+      (contenido.examples ? Object.values(contenido.examples)[0]?.value : undefined) ??
+      (contenido.schema ? ejemplo(contenido.schema) : undefined);
+    if (ej === undefined || ej === null) return undefined;
+    if (typeof ej === 'object' && !Array.isArray(ej) && !Object.keys(ej).length) return undefined;
+    return json(ej);
+  }
+
+  function auth(op) {
+    const reglas = op.security ?? doc.security;
+    if (!reglas) return undefined;
+    return reglas.map((r) =>
+      Object.keys(r).map((k) => {
+        const e = seguridad[k] ?? {};
+        return sinVacios({
+          nombre: k,
+          en: e.in ?? (e.type === 'http' ? 'http' : undefined),
+          clave: e.name ?? (e.scheme ? `Authorization: ${e.scheme}` : undefined),
+          descripcion: md(e.description ?? ''),
+        });
+      }),
+    );
+  }
+
+  /** Una operación → ["api_operacion", {…}] (la forma de lib/api-operacion.ts de Powbook). */
   function operacion(ruta, metodo, op) {
-    const spec = [];
-    const titulo = unaLinea(op.summary) || `${metodo.toUpperCase()} ${ruta}`;
-    spec.push(['titulo', `\`${metodo.toUpperCase()}\` ${titulo}`, {}]);
-    spec.push(['parrafo', `\`${metodo.toUpperCase()} ${ruta}\``]);
-    if (op.deprecated) spec.push(['callout', '**Deprecado.** Va a dejar de existir: no lo uses en un storefront nuevo.', 'warning']);
-    if (op.description) spec.push(...aSpec(op.description, { resolver }));
-    const auth = autenticacion(op);
-    if (auth) spec.push(['parrafo', auth]);
-
-    const params = op.parameters ?? [];
-    if (params.length) {
-      spec.push(['parrafo', '**Parámetros**']);
-      spec.push([
-        'tabla',
-        [
-          ['Nombre', 'En', 'Tipo', 'Requerido', 'Descripción'],
-          ...params.map((p0) => {
-            const p = p0.$ref ? deref(p0) : p0;
-            return [codigo(p.name), p.in, codigo(tipo(p.schema)), p.required ? 'sí' : '', celda(p.description)];
-          }),
-        ],
-      ]);
-    }
-
-    const cuerpo = op.requestBody?.content?.['application/json']?.schema;
-    if (cuerpo) {
-      spec.push(['parrafo', `**Cuerpo${op.requestBody.required ? '' : ' (opcional)'}**`]);
-      const filas = campos(cuerpo);
-      if (filas.length) spec.push(['tabla', [['Campo', 'Tipo', 'Requerido', 'Descripción'], ...filas]]);
-      const ej = op.requestBody.content['application/json'].example ?? ejemplo(cuerpo);
-      if (ej && (typeof ej !== 'object' || Object.keys(ej).length)) spec.push(['codigo', json(ej), 'json']);
-    }
-
-    const respuestas = Object.entries(op.responses ?? {});
-    if (respuestas.length) {
-      spec.push(['parrafo', '**Respuestas**']);
-      spec.push([
-        'tabla',
-        [
-          ['Código', 'Descripción', 'Cuerpo'],
-          ...respuestas.map(([codigoHttp, r]) => {
-            const s = r.content?.['application/json']?.schema;
-            return [codigo(codigoHttp), celda(r.description), s ? codigo(tipo(s)) : ''];
-          }),
-        ],
-      ]);
-      const ok = respuestas.find(([c]) => /^2/.test(c));
-      const s = ok?.[1]?.content?.['application/json'];
-      if (s?.schema || s?.example) {
-        const ej = s.example ?? ejemplo(s.schema);
-        if (ej !== null && ej !== undefined) {
-          spec.push(['parrafo', `**Ejemplo de respuesta ${ok[0]}** (armado desde el schema):`]);
-          spec.push(['codigo', json(ej), 'json']);
-        }
-      }
-    }
-    return spec;
+    const parametros = (op.parameters ?? []).map((p0) => {
+      const p = p0.$ref ? deref(p0) : p0;
+      const sch = deref(p.schema ?? {});
+      return sinVacios({
+        nombre: p.name,
+        en: p.in,
+        tipo: tipoRedoc(p.schema),
+        requerido: !!p.required,
+        descripcion: md(p.description ?? ''),
+        valores: sch.enum?.map((v) => JSON.stringify(v)),
+        defecto: valorTexto(sch.default),
+        ejemplo: valorTexto(p.example ?? sch.example),
+      });
+    });
+    const cuerpoCt = op.requestBody ? Object.keys(op.requestBody.content ?? {})[0] : null;
+    const cuerpoC = cuerpoCt ? op.requestBody.content[cuerpoCt] : null;
+    const respuestas = Object.entries(op.responses ?? {}).map(([codigoHttp, r0]) => {
+      const r = r0.$ref ? deref(r0) : r0;
+      const ct = Object.keys(r.content ?? {})[0];
+      const c = ct ? r.content[ct] : null;
+      return sinVacios({
+        codigo: codigoHttp,
+        descripcion: md(r.description ?? ''),
+        contentType: ct,
+        schema: c?.schema ? schemaApi(c.schema) : undefined,
+        ejemplo: ejemploDe(c),
+      });
+    });
+    const datos = sinVacios({
+      metodo: metodo.toUpperCase(),
+      path: ruta,
+      resumen: unaLinea(op.summary) || `${metodo.toUpperCase()} ${ruta}`,
+      descripcion: md(op.description ?? ''),
+      deprecado: !!op.deprecated,
+      auth: auth(op),
+      parametros,
+      cuerpo: cuerpoC
+        ? sinVacios({
+            requerido: !!op.requestBody.required,
+            contentType: cuerpoCt,
+            descripcion: md(op.requestBody.description ?? ''),
+            schema: cuerpoC.schema ? schemaApi(cuerpoC.schema) : undefined,
+            ejemplo: ejemploDe(cuerpoC),
+          })
+        : undefined,
+      respuestas,
+    });
+    return ['api_operacion', datos];
   }
 
   // Operaciones por tag, en el orden de `tags` y de `paths`.
@@ -224,13 +274,10 @@ export function crearReferencia(doc, { resolver }) {
     grupos: grupos.filter((g) => g.ops.length),
     /** El spec de la página de un grupo. */
     pagina(g) {
+      // Sin tabla índice: en Powbook las operaciones se listan en el sidebar, con su método.
       const spec = [];
       if (g.descripcion) spec.push(...aSpec(g.descripcion, { resolver }));
-      spec.push([
-        'tabla',
-        [['Método', 'Ruta', 'Qué hace'], ...g.ops.map(({ ruta, metodo, op }) => [codigo(metodo.toUpperCase()), codigo(ruta), celda(op.summary)])],
-      ]);
-      for (const { ruta, metodo, op } of g.ops) spec.push(...operacion(ruta, metodo, op));
+      for (const { ruta, metodo, op } of g.ops) spec.push(operacion(ruta, metodo, op));
       return spec;
     },
     /** La tabla de headers de autenticación (para la portada de la referencia). */
