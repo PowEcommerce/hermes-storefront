@@ -15,6 +15,9 @@ npm create @hermesecommerce/store mi-tienda
 npm create @hermesecommerce/store mi-tienda -- --template skeleton
 ```
 
+0. Si tu versión de Node no es una de las que soportan las dependencias del
+   template (22 LTS, o 20/24; `engines` del `package.json`), avisa —«Estás
+   con Node 23.7.0; recomendamos Node 22 LTS (o 20/24)»— y sigue.
 1. Elige el template: el de `--template`; si no, lo pregunta (con terminal)
    con demo por defecto; sin terminal (CI), demo.
 2. Lo copia en `mi-tienda/` (sin `node_modules`, `.next`, `.env` ni lockfile).
