@@ -141,8 +141,8 @@ async function logueado(
 }
 
 describe('hermes link', () => {
-  it('elige la marca de la lista, crea tokens y escribe .env sin pisar otras variables', async () => {
-    const { api, t, leer } = await logueado({ interactive: true, respuestas: ['2', ''] });
+  it('elige la marca de la lista, crea tokens y escribe .env sin pisar otras variables (proyecto = ID de la marca, sin preguntar)', async () => {
+    const { api, t, leer } = await logueado({ interactive: true, respuestas: ['2'] });
     await writeFile(join(t.cwd, '.env'), 'DATABASE_URL=postgres://x\n');
     await writeFile(join(t.cwd, 'package.json'), JSON.stringify({ name: '@agencia/tienda-yag' }));
 
@@ -153,7 +153,8 @@ describe('hermes link', () => {
     expect(t.out.join('\n')).not.toContain('Tercera');
     const linkCall = api.llamadas.find((c) => c.path.endsWith('/link'))!;
     expect(linkCall.path).toBe('/api/cli/tenants/otramarca/link');
-    expect(linkCall.body).toEqual({ project_name: 'tienda-yag', domains: ['tienda.agencia.com'] });
+    expect(linkCall.body).toEqual({ project_name: 'otramarca', domains: ['tienda.agencia.com'] });
+    expect(t.out.join('\n')).not.toContain('Nombre del proyecto');
 
     const env = await leer('.env');
     expect(env).toMatch(/^DATABASE_URL=postgres:\/\/x\n/);
@@ -164,22 +165,23 @@ describe('hermes link', () => {
     expect(env).not.toContain('HERMES_REVALIDATE_SECRET');
     expect(await leer('.gitignore')).toBe('.env\n');
     const proyecto = JSON.parse(await leer('.hermes/project.json'));
-    expect(proyecto).toMatchObject({ tenant: 'otramarca', project_name: 'tienda-yag' });
+    expect(proyecto).toMatchObject({ tenant: 'otramarca', project_name: 'otramarca' });
     // project.json es del equipo (git): sin tokens ni ids personales.
     expect(proyecto).not.toHaveProperty('public_token_id');
     expect(JSON.stringify(proyecto)).not.toMatch(/pst_|psk_/);
     expect(t.out.join('\n')).toContain('Son tus tokens de desarrollo (personales, con localhost)');
   });
 
-  it('--tenant y --name sin preguntar; --no-private y --revalidate-url', async () => {
+  it('--tenant y --project sin preguntar (--name, el de antes, también); --no-private y --revalidate-url', async () => {
     const { api, t, leer } = await logueado();
     expect(
       await main(
-        ['link', '--tenant', 'mimarca', '--name', 'demo', '--revalidate-url', 'https://x.com/api/hermes/revalidate'],
+        ['link', '--tenant', 'mimarca', '--project', 'demo', '--revalidate-url', 'https://x.com/api/hermes/revalidate'],
         t.ctx,
       ),
     ).toBe(0);
     expect(await leer('.env')).toContain('HERMES_REVALIDATE_SECRET=whsec_1');
+    expect(linkDe(api)).toEqual(['demo']);
     const { t: t2 } = await logueado();
     expect(await main(['link', '--tenant', 'mimarca', '--name', 'solo', '--no-private'], t2.ctx)).toBe(0);
     expect(await readFile(join(t2.cwd, '.env'), 'utf8')).not.toContain('HERMES_PRIVATE_TOKEN');
@@ -277,19 +279,29 @@ describe('hermes link: el proyecto de la marca', () => {
     expect(out).toContain('3) Crear un proyecto nuevo');
     expect(linkDe(api)).toEqual(['outlet']);
 
-    // Crear uno nuevo: pregunta el nombre (default: el del package.json).
+    // Crear uno nuevo: con el ID de la marca, sin preguntar.
     const { api: api2, t: t2 } = await logueado({
       interactive: true,
-      respuestas: ['3', ''],
+      respuestas: ['3'],
       proyectos: lista([MI_TIENDA, OUTLET], 3),
     });
-    await writeFile(join(t2.cwd, 'package.json'), JSON.stringify({ name: 'nueva-tienda' }));
     expect(await main(['link', '--tenant', 'mimarca'], t2.ctx)).toBe(0);
-    expect(t2.out.join('\n')).toContain('Nombre del proyecto [nueva-tienda]');
-    expect(linkDe(api2)).toEqual(['nueva-tienda']);
+    expect(t2.out.join('\n')).not.toContain('Nombre del proyecto');
+    expect(linkDe(api2)).toEqual(['mimarca']);
+
+    // Si ya hay uno con el ID de la marca, ahí sí pregunta (con otro sugerido).
+    const MIMARCA = { ...OUTLET, name: 'mimarca' };
+    const { api: api3, t: t3 } = await logueado({
+      interactive: true,
+      respuestas: ['3', ''],
+      proyectos: lista([MI_TIENDA, MIMARCA], 3),
+    });
+    expect(await main(['link', '--tenant', 'mimarca'], t3.ctx)).toBe(0);
+    expect(t3.out.join('\n')).toContain('Nombre del proyecto nuevo [mimarca-2]');
+    expect(linkDe(api3)).toEqual(['mimarca-2']);
   });
 
-  it('varios con el plan lleno: sin «Crear un proyecto nuevo»; sin terminal pide --name', async () => {
+  it('varios con el plan lleno: sin «Crear un proyecto nuevo»; sin terminal pide --project', async () => {
     const { t } = await logueado({ interactive: true, respuestas: ['1'], proyectos: lista([MI_TIENDA, OUTLET], 2) });
     expect(await main(['link', '--tenant', 'mimarca'], t.ctx)).toBe(0);
     expect(t.out.join('\n')).toContain('2) outlet');
@@ -301,12 +313,12 @@ describe('hermes link: el proyecto de la marca', () => {
     expect(linkDe(api)).toEqual([]);
   });
 
-  it('ninguno: pregunta el nombre (default: la carpeta / package.json) y lo crea, como antes', async () => {
-    const { api, t } = await logueado({ interactive: true, respuestas: [''], proyectos: lista([], 1) });
+  it('ninguno: lo crea con el ID de la marca, sin preguntar (ni el package.json ni la carpeta)', async () => {
+    const { api, t } = await logueado({ interactive: true, proyectos: lista([], 1) });
     await writeFile(join(t.cwd, 'package.json'), JSON.stringify({ name: '@agencia/tienda-yag' }));
     expect(await main(['link', '--tenant', 'mimarca'], t.ctx)).toBe(0);
-    expect(t.out.join('\n')).toContain('Nombre del proyecto [tienda-yag]');
-    expect(linkDe(api)).toEqual(['tienda-yag']);
+    expect(t.out.join('\n')).not.toContain('Nombre del proyecto');
+    expect(linkDe(api)).toEqual(['mimarca']);
     expect(t.out.join('\n')).not.toContain('es el proyecto de la tienda');
   });
 
@@ -316,11 +328,11 @@ describe('hermes link: el proyecto de la marca', () => {
     expect(linkDe(api)).toEqual(['prueba']);
   });
 
-  it('--name inexistente con el plan lleno: falla en el link (no en el deploy) y sugiere el que existe', async () => {
+  it('--project inexistente con el plan lleno: falla en el link (no en el deploy) y sugiere el que existe', async () => {
     const { api, t } = await logueado({ proyectos: lista([MI_TIENDA, PRUEBA], 1) });
-    expect(await main(['link', '--tenant', 'mimarca', '--name', 'Prueba'], t.ctx)).toBe(1);
+    expect(await main(['link', '--tenant', 'mimarca', '--project', 'Prueba'], t.ctx)).toBe(1);
     expect(t.err.join('\n')).toContain(
-      'El plan de mimarca permite 1 proyecto y ya existe «mi-tienda»: «prueba» no se podría deployar. Usá ese: `hermes link --name mi-tienda`.',
+      'El plan de mimarca permite 1 proyecto y ya existe «mi-tienda»: «prueba» no se podría deployar. Usá ese: `hermes link --project mi-tienda`.',
     );
     expect(linkDe(api)).toEqual([]);
     // El existente por --name anda (y un nombre equivalente también).
@@ -355,7 +367,7 @@ describe('hermes link: el proyecto de la marca', () => {
       JSON.stringify({ tenant: 'mimarca', project_name: 'prueba', api: 'https://api.pow.la', linked_at: 'x' }),
     );
     expect(await main(['link'], t2.ctx)).toBe(1);
-    expect(t2.err.join('\n')).toContain('Usá ese: `hermes link --name mi-tienda`');
+    expect(t2.err.join('\n')).toContain('Usá ese: `hermes link --project mi-tienda`');
     expect(linkDe(api2)).toEqual([]);
   });
 
@@ -372,12 +384,12 @@ describe('hermes link: el proyecto de la marca', () => {
     expect(linkDe(api)).toEqual(['mi-tienda']);
   });
 
-  it('API vieja (sin /projects → 404): pregunta el nombre como antes', async () => {
-    const { api, t } = await logueado({ interactive: true, respuestas: ['demo'] });
+  it('API vieja (sin /projects → 404): el ID de la marca, sin preguntar', async () => {
+    const { api, t } = await logueado({ interactive: true });
     expect(await main(['link', '--tenant', 'mimarca'], t.ctx)).toBe(0);
     expect(api.llamadas.some((c) => c.path.endsWith('/projects'))).toBe(true);
-    expect(t.out.join('\n')).toContain('Nombre del proyecto [');
-    expect(linkDe(api)).toEqual(['demo']);
+    expect(t.out.join('\n')).not.toContain('Nombre del proyecto');
+    expect(linkDe(api)).toEqual(['mimarca']);
   });
 });
 

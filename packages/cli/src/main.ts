@@ -26,6 +26,7 @@ import {
   tokensRotate,
 } from './commands/tokens';
 import { whoami } from './commands/whoami';
+import { avisarNode } from './node';
 
 const AYUDA = `hermes ${VERSION} — CLI de Hermes para agencias
 
@@ -47,8 +48,8 @@ Uso: hermes <comando> [opciones]
                         proyecto de la marca si ya existe (una tienda, un
                         proyecto: el equipo trabaja con branches y previews)
       --tenant <marca>  Sin elegir de la lista
-      --name <nombre>   Forzar un proyecto (si no hay ninguno, default: el del
-                        package.json)
+      --project <nombre>  Forzar un proyecto (casos raros; si la marca no
+                        tiene ninguno, se crea con el ID de la marca)
       --domain <host>   Dominio del storefront (repetible): return_url del
                         checkout y CORS desde el navegador
       --no-private      Sin token privado (psk_)
@@ -195,7 +196,10 @@ const BOOLEANOS = [
 export async function main(argv: string[], ctx: Ctx): Promise<number> {
   try {
     // create le pasa todo (también --help) al generador, sin parsear.
-    if (argv[0] === 'create') return await create(ctx, argv.slice(1));
+    if (argv[0] === 'create') {
+      avisarNode(ctx);
+      return await create(ctx, argv.slice(1));
+    }
     const parsed = parseArgs(argv, BOOLEANOS, ['domain']);
     const [a, b] = parsed.positional;
     if (parsed.flags.version || a === 'version') {
@@ -213,6 +217,9 @@ export async function main(argv: string[], ctx: Ctx): Promise<number> {
       ctx.err(AYUDA);
       return 2;
     }
+    // Los comandos que instalan o buildean la tienda: aviso (no error) si la
+    // versión de Node no es una de las que soportan sus dependencias.
+    if (['dev', 'preview', 'deploy'].includes(nombre)) avisarNode(ctx);
     await cmd(ctx, parsed);
     return 0;
   } catch (e) {

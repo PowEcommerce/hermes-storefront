@@ -1,5 +1,5 @@
 import { mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 
 /**
  * `.hermes/project.json`: a qué marca y proyecto está linkeada esta carpeta.
@@ -38,20 +38,6 @@ export async function borrarProyecto(cwd: string): Promise<void> {
   await rm(join(cwd, DIR, ARCHIVO), { force: true });
   // La carpeta sólo si quedó vacía.
   await rmdir(join(cwd, DIR)).catch(() => undefined);
-}
-
-/** Nombre por default del proyecto: el `name` del package.json o la carpeta. */
-export async function nombrePorDefecto(cwd: string): Promise<string> {
-  try {
-    const pkg = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8')) as {
-      name?: unknown;
-    };
-    if (typeof pkg.name === 'string' && pkg.name.trim())
-      return pkg.name.replace(/^@[^/]+\//, '').slice(0, 60);
-  } catch {
-    // sin package.json
-  }
-  return basename(cwd).slice(0, 60) || 'storefront';
 }
 
 /**

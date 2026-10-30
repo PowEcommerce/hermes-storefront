@@ -75,6 +75,7 @@ export async function ctxDePrueba(
       return Promise.resolve();
     },
     clientName: 'hermes-cli test',
+    nodeVersion: '22.11.0',
     spawn: (cmd, args, o) => {
       procesos.push({ cmd, args, cwd: o.cwd, env: o.env });
       return Promise.resolve(codigos.shift() ?? 0);

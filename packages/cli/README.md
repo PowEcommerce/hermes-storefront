@@ -12,7 +12,8 @@ npm install -g @hermesecommerce/cli   # o, sin instalar nada global: npx @hermes
 > **Ojo:** El comando se llama `hermes`, pero el paquete es `@hermesecommerce/cli`. No instales el paquete `hermes` de npm: es de un tercero. Por eso nunca uses `npx hermes`: fuera de un proyecto
 > con la CLI instalada, baja y ejecuta ese paquete ajeno.
 
-Necesitás Node 18+ y un usuario del backoffice de Pow (el mismo con el que
+Necesitás Node 18+ (para la tienda: Node 22 LTS, o 20/24; `hermes create`,
+`dev`, `preview` y `deploy` avisan si tu versión no es una de ésas) y un usuario del backoffice de Pow (el mismo con el que
 entrás al admin). Para crear tokens tenés que ser **admin de la marca**.
 
 ## Recorrido de una tienda nueva
@@ -57,11 +58,16 @@ y `.env` se agrega a tu `.gitignore` si no estaba.
 ### `hermes create [carpeta] [opciones]`
 
 Crea una tienda nueva desde el starter: delega en
-`@hermesecommerce/create-store` de la misma major que la CLI
-(`npx --yes @hermesecommerce/create-store@^0`) con las mismas opciones (`--template demo|skeleton`,
+`@hermesecommerce/create-store` con las mismas opciones (`--template demo|skeleton`,
 `--no-install`, `--pm <npm|pnpm|yarn|bun>`, `--link`/`--no-link`, `--help`).
 `--template demo` (default) crea la tienda completa de ejemplo; `--template
-skeleton`, lo mínimo para arrancar tu propio diseño. Para probar un generador sin publicar:
+skeleton`, lo mínimo para arrancar tu propio diseño.
+
+Corre el generador con su **versión exacta** (`npx --yes --prefer-online
+@hermesecommerce/create-store@<versión>`): la `latest` de npm si es de la misma
+major que la CLI, o la mínima que conoce la CLI si no hay red. Nunca un rango
+como `@^0`: con un rango, npx reusa la copia que tenga en su caché aunque sea
+vieja (y la tienda salía con el template y la CLI de antes). Para probar un generador sin publicar:
 `HERMES_CREATE_STORE_BIN=…/create/dist/index.js hermes create x`.
 
 ### CLI global y CLI del proyecto
@@ -116,16 +122,19 @@ Linkea la carpeta actual a una marca:
    - Si tiene **varios**, elegís de la lista (con la URL de producción y la
      fecha del último deploy) o «Crear un proyecto nuevo» (no aparece si el
      plan ya llegó a su tope de proyectos).
-   - Si no tiene **ninguno**, te pregunta el nombre (default: el `name` del
-     `package.json` o la carpeta) y lo crea.
-   - `--name` fuerza un proyecto. Si no existe y el plan ya está lleno, falla
+   - Si no tiene **ninguno**, lo crea con el **ID de la marca** como nombre
+     (`hermes link --tenant mi-marca` → proyecto `mi-marca`), sin preguntar.
+     Si elegís «Crear un proyecto nuevo» y ya hay uno con ese nombre, ahí sí
+     te pregunta (sugiere `mi-marca-2`).
+   - `--project <nombre>` fuerza un proyecto (para casos raros; `--name`, el
+     de antes, sigue andando). Si no existe y el plan ya está lleno, falla
      en el link (`El plan de mi-marca permite 1 proyecto y ya existe
-     «mi-tienda». Usá ese: hermes link --name mi-tienda`), no recién en el
+     «mi-tienda». Usá ese: hermes link --project mi-tienda`), no recién en el
      deploy.
    - Si `.hermes/project.json` apunta a un proyecto que la marca no tiene, te
      avisa y te ofrece cambiarlo al que existe.
-   - Con una API anterior (sin la lista de proyectos), pregunta el nombre como
-     antes.
+   - Con una API anterior (sin la lista de proyectos), usa el de
+     `.hermes/project.json` o el ID de la marca, sin preguntar.
 3. La API crea **tus tokens de desarrollo**: un **público** `pst_`
    (`<proyecto> · dev · <tu email>`, con `localhost` para CORS) y uno
    **privado** `psk_` (`… (servidor)`, scopes `checkout_sessions:read` +
@@ -138,7 +147,7 @@ Linkea la carpeta actual a una marca:
 | Opción | |
 |---|---|
 | `--tenant <marca>` | sin elegir de la lista |
-| `--name <nombre>` | forzar un proyecto (1–60 caracteres); ver arriba qué pasa si el plan está lleno |
+| `--project <nombre>` | forzar un proyecto (1–60 caracteres; alias: `--name`); ver arriba qué pasa si el plan está lleno |
 | `--domain <host>` | dominio del storefront, repetible: a dónde puede volver el checkout (`return_url`/`cancel_url`) y desde dónde se acepta CORS. |
 | `--no-private` | sólo el token público |
 | `--revalidate-url <url>` | crea el webhook `storefront/revalidate` y escribe `HERMES_REVALIDATE_SECRET` |
