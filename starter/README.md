@@ -19,6 +19,9 @@ hermes deploy                          # 7. publicar en el hosting de Hermes
 hermes domains add www.mi-marca.com    # 8. tu dominio (o desde el admin: Configuración → Dominios)
 ```
 
+Con **Node 22 LTS** (o 20/24; `engines` del `package.json`). Con otra versión
+(p. ej. 23) la instalación tira `EBADENGINE` de vitest/eslint; la CLI avisa.
+
 La tienda trae la CLI como devDependency (como el template de Hydrogen trae
 `@shopify/cli`): la versión queda fija por proyecto y el CI la usa sin
 instalar nada. Si tu `hermes` global es de otra versión, avisa y corre la del
@@ -133,6 +136,32 @@ con [`components/blocks/PageBlocks.tsx`](./components/blocks/PageBlocks.tsx):
 - **Caché:** home con tag `home-page-blocks` (60 s), landings con `landings`
   + `landing-<slug>`; Hermes los purga al guardar y `/api/hermes/revalidate`
   los recibe como cualquier otro tag.
+- **Home de ejemplo:** si la marca todavía no cargó bloques, `/` muestra una
+  home armada con su nombre, destacados y categorías. En `hermes dev` lleva
+  un aviso («Esta es la home de ejemplo: cargá la tuya desde el admin
+  (Contenido › Página de inicio)»); en producción, no.
+
+### Vista previa del editor de inicio (`/home/preview`)
+
+El editor de inicio del admin de Hermes abre en un iframe
+`<tu tienda>/home/preview?pb_type=Main%20Store[&home_version_token=…]&t=…`.
+[`app/home/preview/page.tsx`](./app/home/preview/page.tsx) dibuja los mismos
+bloques que la home (`PageBlocks`) para ese `pb_type` (`Main Store`,
+`OUTLET`…), con estas diferencias:
+
+- **Dinámica y sin caché** (`force-dynamic`, `no-store`): lo que se acaba de
+  guardar se ve en el próximo reload del iframe.
+- Con **`home_version_token`**, la versión en borrador (`content.home({
+  homeVersionToken })` del SDK) y un cartel arriba: «Vista previa: <versión> ·
+  no es lo que ven los clientes». Con un token vencido, la home publicada.
+- **`noindex`** (metadata y `X-Robots-Tag`).
+- Habla con el editor por `postMessage` ([`components/blocks/PuenteDelEditor.tsx`](./components/blocks/PuenteDelEditor.tsx)):
+  resalta el bloque que elegís en el admin y le avisa cuál tocás en la vista
+  previa.
+- Es la **única ruta embebible**, y sólo desde `https://hermes.pow.la` y
+  `https://admin.pow.la` (ver abajo).
+
+Si renombrás o movés la home, mantené esta ruta: es la URL que usa el admin.
 
 ### Cómo está armado
 
@@ -194,7 +223,12 @@ con [`components/blocks/PageBlocks.tsx`](./components/blocks/PageBlocks.tsx):
 
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: strict-origin-when-cross-origin`
-- `X-Frame-Options: SAMEORIGIN`
+- `X-Frame-Options: SAMEORIGIN` (la tienda no se deja embeber en un iframe
+  ajeno), salvo en `/home/preview`: ahí no va, y en su lugar sale una
+  `Content-Security-Policy: frame-ancestors 'self' https://hermes.pow.la
+  https://admin.pow.la` **obligatoria** (aunque el resto de la CSP siga en
+  Report-Only), para que sólo el admin de Hermes la pueda embeber
+  (`reglasDeHeaders()` en `lib/security-headers.ts`)
 - una **Content-Security-Policy en modo `Report-Only`**: el navegador avisa
   en la consola lo que bloquearía, pero no bloquea nada.
 

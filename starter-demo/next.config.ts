@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next';
-import { securityHeaders } from './lib/security-headers';
+import { reglasDeHeaders } from './lib/security-headers';
 
 const nextConfig: NextConfig = {
   // Las imágenes vienen del CDN de cada marca: usamos <img> directo para no
@@ -8,9 +8,11 @@ const nextConfig: NextConfig = {
   // La raíz es esta carpeta (evita que Next adivine otra si hay lockfiles más arriba).
   turbopack: { root: __dirname },
   // nosniff, Referrer-Policy, X-Frame-Options y la CSP (en Report-Only por
-  // defecto): ver lib/security-headers.ts y el README.
+  // defecto): ver lib/security-headers.ts y el README. La vista previa del
+  // editor de inicio (/home/preview) lleva los suyos: embebible sólo desde el
+  // admin de Hermes.
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders() }];
+    return reglasDeHeaders();
   },
   async rewrites() {
     return [

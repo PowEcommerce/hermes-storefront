@@ -14,6 +14,7 @@ import {
 import { hermes } from './hermes';
 import { detalleDeError } from './errors';
 import { linkOptions } from './links';
+import { versionDeLaRespuesta, type VersionEnPreview } from './preview';
 
 export { ROUTES, brandHosts, linkOptions } from './links';
 
@@ -26,6 +27,23 @@ export const getHomeBlocks = cache(async (pbType?: PbType): Promise<NormalizedPa
     return { sections: [], blocks: [] };
   }
 });
+
+/**
+ * Los bloques para la vista previa del editor de inicio (`/home/preview`):
+ * SIN caché (lo que se acaba de guardar en el admin se tiene que ver en el
+ * próximo reload del iframe) y, con `homeVersionToken`, los de esa versión.
+ * Un error se tira: la página muestra «no se pudo cargar».
+ */
+export async function getHomePreview(
+  pbType: PbType | undefined,
+  homeVersionToken: string | undefined,
+): Promise<{ page: NormalizedPageBlocks; version?: VersionEnPreview }> {
+  const res = await hermes.content.home({ pbType, homeVersionToken }, { fetchOptions: { cache: 'no-store' } });
+  return {
+    page: normalizePageBlocks(res, linkOptions()),
+    version: versionDeLaRespuesta((res as { preview?: unknown }).preview, homeVersionToken),
+  };
+}
 
 /** Una landing con sus bloques normalizados; null si no existe (un 5xx se tira: no cachear un 404 falso). */
 export const getLanding = cache(async (slug: string) => {

@@ -22,7 +22,6 @@ import {
   borrarProyecto,
   guardarProyecto,
   leerProyecto,
-  nombrePorDefecto,
   slugDeProyecto,
 } from '../project';
 import { confirmar, conSesion, elegir } from './common';
@@ -177,9 +176,10 @@ async function linkearProyecto(
 ): Promise<void> {
   const previo = mismoApi?.tenant === tenant ? mismoApi : null;
   const lista = await cliente.proyectos(tenant);
+  const pedido = proyectoPedido(flags);
   const elegido = lista
-    ? await elegirProyecto(ctx, tenant, lista, str(flags.name), previo?.project_name)
-    : { nombre: await nombreAPreguntar(ctx, str(flags.name), previo?.project_name), unico: false };
+    ? await elegirProyecto(ctx, tenant, lista, pedido, previo?.project_name)
+    : { nombre: pedido ?? previo?.project_name ?? tenant, unico: false };
   await linkear(ctx, cliente, api, flags, tenant, elegido.nombre);
   if (elegido.unico)
     ctx.out(
@@ -192,15 +192,20 @@ async function linkearProyecto(
 
 const GUIA_EQUIPO = 'https://github.com/PowEcommerce/hermes-storefront/blob/main/docs/guia-agencias.md#trabajar-en-equipo';
 
-/** Lo de antes (API sin la lista de proyectos): `--name`, o preguntar. */
-async function nombreAPreguntar(
-  ctx: Ctx,
-  flag: string | undefined,
-  previo: string | undefined,
-): Promise<string> {
-  if (flag) return flag;
-  const sugerido = previo ?? (await nombrePorDefecto(ctx.cwd));
-  const r = ctx.interactive ? await ctx.ask(`Nombre del proyecto [${sugerido}]: `) : '';
+/** `--project <nombre>` (o `--name`, el de antes): forzar un proyecto. */
+export const proyectoPedido = (flags: Parsed['flags']): string | undefined => str(flags.project) ?? str(flags.name);
+
+/**
+ * El nombre de un proyecto NUEVO: el ID de la marca (`demo-agencias`), sin
+ * preguntar. Sólo si ya existe uno con ese nombre (se eligió «Crear un
+ * proyecto nuevo» entre varios), se pregunta, con otro sugerido.
+ */
+async function nombreDeProyectoNuevo(ctx: Ctx, tenant: string, ocupados: ProyectoDeMarca[]): Promise<string> {
+  const libre = (n: string) => !ocupados.some((p) => p.name === slugDeProyecto(n));
+  if (libre(tenant)) return tenant;
+  let sugerido = `${tenant}-2`;
+  for (let i = 3; !libre(sugerido); i++) sugerido = `${tenant}-${i}`;
+  const r = ctx.interactive ? await ctx.ask(`Nombre del proyecto nuevo [${sugerido}]: `) : '';
   return r.trim() || sugerido;
 }
 
@@ -220,9 +225,10 @@ const etiquetaDeProyecto = (p: ProyectoDeMarca) => {
  *    plan); los que sólo tienen tokens de desarrollo (un link a un nombre que
  *    nunca se deployó) no se ofrecen. Sin hosting, los que tienen tokens.
  *  - 1 → ése, sin preguntar. Varios → elegir (+ «Crear un proyecto nuevo» si
- *    el plan tiene lugar). Ninguno → preguntar el nombre, como antes.
- *  - `--name` fuerza un proyecto; si es nuevo y el plan ya está lleno, falla
- *    acá y no recién en `hermes deploy`.
+ *    el plan tiene lugar). Ninguno → uno nuevo con el ID de la marca, sin
+ *    preguntar.
+ *  - `--project` fuerza un proyecto; si es nuevo y el plan ya está lleno,
+ *    falla acá y no recién en `hermes deploy`.
  *  - Si project.json apunta a un proyecto que no es de la marca, avisa y
  *    ofrece cambiarlo.
  */
@@ -244,7 +250,7 @@ async function elegirProyecto(
         conHosting.length === 1 ? `existe «${conHosting[0].name}»` : `existen ${conHosting.map((p) => `«${p.name}»`).join(', ')}`
       }: «${slugDeProyecto(pedido)}» no se podría deployar. Usá ${
         conHosting.length === 1 ? 'ese' : 'uno de esos'
-      }: \`hermes link --name ${conHosting[0].name}\`.`,
+      }: \`hermes link --project ${conHosting[0].name}\`.`,
     );
 
   if (flag) {
@@ -286,13 +292,13 @@ async function elegirProyecto(
 
   if (candidatos.length === 1) return { nombre: candidatos[0].name, unico: true };
   if (!candidatos.length) {
-    const nombre = await nombreAPreguntar(ctx, undefined, undefined);
+    const nombre = await nombreDeProyectoNuevo(ctx, tenant, lista.projects);
     if (lleno) throw errorDePlan(nombre);
     return { nombre, unico: false };
   }
   if (!ctx.interactive)
     throw new CliError(
-      `${tenant} tiene varios proyectos (${candidatos.map((p) => p.name).join(', ')}): elegí uno con \`hermes link --name <proyecto>\`.`,
+      `${tenant} tiene varios proyectos (${candidatos.map((p) => p.name).join(', ')}): elegí uno con \`hermes link --project <proyecto>\`.`,
     );
   const nuevo = null;
   const opciones: Array<ProyectoDeMarca | null> = [...candidatos, ...(lleno ? [] : [nuevo])];
@@ -300,7 +306,7 @@ async function elegirProyecto(
     p === nuevo ? 'Crear un proyecto nuevo' : etiquetaDeProyecto(p),
   );
   if (r) return { nombre: r.name, unico: false };
-  return { nombre: await nombreAPreguntar(ctx, undefined, undefined), unico: false };
+  return { nombre: await nombreDeProyectoNuevo(ctx, tenant, lista.projects), unico: false };
 }
 
 export async function unlink(ctx: Ctx, { flags }: Parsed): Promise<void> {

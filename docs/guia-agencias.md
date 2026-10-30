@@ -62,6 +62,16 @@ Fuera de un proyecto: `npx @hermesecommerce/cli@^0 <comando>`.
   el checkout de la marca queda en tu mismo dominio
   (`www.<tu-dominio>/checkout/...`); con el front afuera, podés sumarle
   `checkout.<tu-dominio>` (`hermes domains add --checkout-subdomain`).
+- **Node:** 22 LTS (o 20/24). Con otra versión (p. ej. 23) la instalación
+  tira `EBADENGINE` de vitest/eslint: `hermes create`, `dev`, `preview` y
+  `deploy` te avisan (sin cortar nada).
+- **La home la carga la marca** en el admin (Contenido › Página de inicio).
+  Mientras no tenga bloques, la tienda muestra una home de ejemplo (en
+  `hermes dev` con un aviso que lo dice). La **vista previa del editor** de
+  ese admin abre la ruta `/home/preview` de tu tienda en un iframe: el
+  template la trae (los mismos bloques que la home, sin caché, con la versión
+  en borrador si el admin manda `home_version_token`), y es la única ruta que
+  se deja embeber, sólo desde el admin de Hermes. Ver el README del starter.
 - Después: dominio propio y remitente de los mails de la marca (con Pow).
 
 Qué trae cada página, cómo maneja tokens y caché, y qué queda afuera: el
@@ -259,7 +269,7 @@ trabajan sobre él, como con Hydrogen/Oxygen:
   marca ya tiene (si tiene uno, sin preguntar el nombre; si tiene varios,
   elegís de la lista). No crees otro con tu nombre: el plan fija cuántos
   proyectos puede tener la marca (muchas veces, 1) y uno nuevo no se podría
-  deployar. Si te pasás del tope con `--name`, el link te lo dice y te
+  deployar. Si te pasás del tope con `--project`, el link te lo dice y te
   sugiere el que existe.
 - **Tu branch → `hermes deploy --preview`.** Cada uno trabaja en su branch
   de git y la publica en su URL de preview.

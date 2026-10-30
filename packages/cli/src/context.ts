@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { comandoParaAbrir } from './browser';
 
-export const VERSION = '0.2.1';
+export const VERSION = '0.3.0';
 /**
  * User-Agent de los pedidos a la API que no pasan por ApiClient (que manda
  * `clientName`). El WAF de api.pow.la da 403 a los pedidos sin User-Agent; el
@@ -52,6 +52,8 @@ export interface Ctx {
   tty?: boolean;
   /** Escribir en stdout sin salto de línea (el spinner). */
   write?: (texto: string) => void;
+  /** La versión de Node (default `process.versions.node`; para los tests). */
+  nodeVersion?: string;
 }
 
 export interface SpawnOpts {

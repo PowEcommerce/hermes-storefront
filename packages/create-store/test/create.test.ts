@@ -16,6 +16,7 @@ import {
   elegirTemplate,
   parsear,
   nombreDePaquete,
+  nodeSoportado,
 } from '../src/create';
 import { NPMRC_TIENDA, copiarTemplate, seCopia } from '../src/template';
 
@@ -70,6 +71,7 @@ async function ctxDePrueba(opts: { respuestas?: string[]; interactive?: boolean;
       return codigos.shift() ?? 0;
     },
     templateDir: await templateFalso(),
+    nodeVersion: '22.11.0',
   };
   return { ctx, out, err, corridas, cwd };
 }
@@ -363,5 +365,33 @@ describe('helpers', () => {
     // el starter del repo también lo usa (CI con npm 10)
     expect(await readFile(join(STARTER, '.npmrc'), 'utf8')).toMatch(/^legacy-peer-deps=true$/m);
     expect(archivos).toEqual(expect.arrayContaining(['app', 'lib', 'components', 'README.md', '.gitignore', '.env.example']));
+  });
+});
+
+describe('aviso de la versión de Node', () => {
+  it.each(['20.9.0', '22.11.0', 'v24.1.0', '25.0.0'])('%s: sin aviso', (v) => expect(nodeSoportado(v)).toBe(true));
+  it.each(['18.20.0', '20.8.0', '21.1.0', '23.7.0'])('%s: con aviso', (v) => expect(nodeSoportado(v)).toBe(false));
+
+  it('avisa (sin fallar) con Node 23, salvo que `hermes create` ya haya avisado', async () => {
+    const t = await ctxDePrueba();
+    t.ctx.nodeVersion = '23.7.0';
+    expect(await crear(['tienda', '--no-install'], t.ctx)).toBe(0);
+    expect(t.err.join('\n')).toContain('Estás con Node 23.7.0; recomendamos Node 22 LTS (o 20/24)');
+
+    const t2 = await ctxDePrueba({ env: { HERMES_NODE_AVISADO: '1' } });
+    t2.ctx.nodeVersion = '23.7.0';
+    expect(await crear(['tienda', '--no-install'], t2.ctx)).toBe(0);
+    expect(t2.err.join('\n')).not.toContain('Estás con Node');
+
+    const t3 = await ctxDePrueba();
+    expect(await crear(['tienda', '--no-install'], t3.ctx)).toBe(0);
+    expect(t3.err.join('\n')).not.toContain('Estás con Node');
+  });
+});
+
+describe('templates del repo', () => {
+  it.each(Object.values(CARPETA_EN_EL_REPO))('%s declara engines con las versiones de Node soportadas', async (carpeta) => {
+    const pkg = JSON.parse(await readFile(join(RAIZ, carpeta, 'package.json'), 'utf8'));
+    expect(pkg.engines?.node).toBe('^20.9.0 || ^22.0.0 || >=24.0.0');
   });
 });

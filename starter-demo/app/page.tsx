@@ -49,6 +49,7 @@ async function HomeSinBloques({ nombre }: { nombre: string }) {
 
   return (
     <>
+      {process.env.NODE_ENV === 'development' && <AvisoDeHomeDeEjemplo />}
       <section className={styles.hero} data-hero="">
         <div className={styles.heroTextos}>
           <p className={styles.kicker}>Nueva temporada</p>
@@ -101,5 +102,20 @@ async function HomeSinBloques({ nombre }: { nombre: string }) {
         </section>
       )}
     </>
+  );
+}
+
+/**
+ * Sólo en desarrollo (`hermes dev`): esta home es la de respaldo, la que sale
+ * cuando la marca no armó la suya. En producción no se muestra.
+ */
+function AvisoDeHomeDeEjemplo() {
+  return (
+    <p
+      role="note"
+      className="fixed bottom-4 left-4 z-[1500] max-w-[min(420px,calc(100%-32px))] rounded-md bg-black/80 px-3 py-2 text-xs leading-snug text-white shadow"
+    >
+      Esta es la home de ejemplo: cargá la tuya desde el admin (Contenido › Página de inicio).
+    </p>
   );
 }

@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { carpetaLibre, copiarTemplate, existe } from './template';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 /** Templates: `demo` (diseño completo, lindo y vendible) y `skeleton` (mínimo, para arrancar de cero). */
 export const TEMPLATES = ['demo', 'skeleton'] as const;
@@ -22,7 +22,7 @@ export const CARPETA_EN_EL_REPO: Record<Template, string> = { demo: 'starter-dem
  */
 export const VERSIONES_PUBLICADAS: Record<string, string> = {
   '@hermesecommerce/storefront': '^0.1.0',
-  '@hermesecommerce/cli': '^0.2.0',
+  '@hermesecommerce/cli': '^0.3.0',
 };
 
 /** Major de una versión ("^0.1.0" → 0). */
@@ -54,9 +54,31 @@ export interface Ctx {
   templateDir?: string;
   /** Carpeta con un subdirectorio por template (`demo/`, `skeleton/`); para los tests. */
   templatesDir?: string;
+  /** La versión de Node (default `process.versions.node`; para los tests). */
+  nodeVersion?: string;
 }
 
 export class CreateError extends Error {}
+
+/**
+ * Las versiones de Node que soportan las dependencias de los templates (Next,
+ * vitest, eslint; ver `engines` del template): 20 (desde 20.9), 22 y 24 en
+ * adelante. Las impares que no son LTS (21, 23) disparan EBADENGINE al
+ * instalar, y 18 no corre Next 16. Mismo criterio que @hermesecommerce/cli.
+ */
+export function nodeSoportado(version: string): boolean {
+  const [major, minor] = version.replace(/^v/, '').split('.').map(Number);
+  if (!Number.isFinite(major)) return true;
+  if (major === 20) return (minor ?? 0) >= 9;
+  return major === 22 || major >= 24;
+}
+
+/** El aviso para una versión de Node no soportada (null si está bien). */
+export function avisoDeNode(version: string): string | null {
+  if (nodeSoportado(version)) return null;
+  const v = version.replace(/^v/, '');
+  return `⚠ Estás con Node ${v}; recomendamos Node 22 LTS (o 20/24). Con otras versiones la instalación puede fallar (EBADENGINE) o la tienda no levantar.`;
+}
 
 const AYUDA = `create-store ${VERSION} — crea una tienda headless de Hermes
 
@@ -202,6 +224,9 @@ export async function crear(argv: string[], ctx: Ctx): Promise<number> {
     ctx.out(AYUDA);
     return 0;
   }
+  // Aviso, no error. `hermes create` ya avisó si corresponde (HERMES_NODE_AVISADO).
+  const aviso = ctx.env.HERMES_NODE_AVISADO ? null : avisoDeNode(ctx.nodeVersion ?? process.versions.node);
+  if (aviso) ctx.err(aviso);
 
   let carpeta = o.carpeta;
   if (!carpeta && ctx.interactive) carpeta = (await ctx.ask('¿Cómo se llama la carpeta de la tienda? (mi-tienda) ')) || 'mi-tienda';

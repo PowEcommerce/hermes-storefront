@@ -82,23 +82,75 @@ describe('CLI del proyecto (global vs local)', () => {
 });
 
 describe('hermes create', () => {
-  it('delega en @hermesecommerce/create-store con las mismas opciones (o en el local de HERMES_CREATE_STORE_BIN)', async () => {
+  const registry = (latest: unknown, status = 200) =>
+    apiFalsaDeRegistry((path) => (path === '/-/package/@hermesecommerce%2fcreate-store/dist-tags' ? { status, body: { latest } } : undefined));
+
+  it('delega en create-store con la versión EXACTA de la latest (nunca un rango que npx resuelva con su caché)', async () => {
     const { main } = await import('../src/main');
-    const { ctxDePrueba, apiFalsa } = await import('./helpers');
-    const t = await ctxDePrueba(apiFalsa(() => undefined).fetch, { codigos: [0, 3] });
+    const { ctxDePrueba } = await import('./helpers');
+    const api = registry('0.4.2');
+    const t = await ctxDePrueba(api.fetch, { codigos: [0] });
     expect(await main(['create', 'mi-marca', '--no-install', '--pm', 'pnpm', '--help'], t.ctx)).toBe(0);
     expect([t.procesos[0].cmd, ...t.procesos[0].args]).toEqual([
       'npx',
       '--yes',
-      '@hermesecommerce/create-store@^0',
+      '--prefer-online',
+      '@hermesecommerce/create-store@0.4.2',
       'mi-marca',
       '--no-install',
       '--pm',
       'pnpm',
       '--help',
     ]);
+    expect(api.llamadas).toEqual(['/-/package/@hermesecommerce%2fcreate-store/dist-tags']);
+  });
+
+  it('sin red, con otra major o con basura en latest: la mínima conocida', async () => {
+    const { main } = await import('../src/main');
+    const { ctxDePrueba } = await import('./helpers');
+    const { CREATE_STORE_MINIMA } = await import('../src/commands/create');
+    for (const api of [registry('1.0.0'), registry('0.9.0-beta.1'), registry(null, 500), apiFalsaDeRegistry(() => { throw new Error('sin red'); })]) {
+      const t = await ctxDePrueba(api.fetch);
+      expect(await main(['create', 'x'], t.ctx)).toBe(0);
+      expect(t.procesos[0].args.slice(0, 3)).toEqual(['--yes', '--prefer-online', `@hermesecommerce/create-store@${CREATE_STORE_MINIMA}`]);
+    }
+  });
+
+  it('HERMES_CREATE_STORE_BIN: el generador local, sin preguntar a npm', async () => {
+    const { main } = await import('../src/main');
+    const { ctxDePrueba } = await import('./helpers');
+    const api = registry('0.4.2');
+    const t = await ctxDePrueba(api.fetch, { codigos: [3] });
     t.ctx.env = { HERMES_CREATE_STORE_BIN: '/repo/create/dist/index.js' };
     expect(await main(['create', 'x'], t.ctx)).toBe(3);
-    expect([t.procesos[1].cmd, ...t.procesos[1].args]).toEqual(['node', '/repo/create/dist/index.js', 'x']);
+    expect([t.procesos[0].cmd, ...t.procesos[0].args]).toEqual(['node', '/repo/create/dist/index.js', 'x']);
+    expect(api.llamadas).toEqual([]);
+  });
+
+  it('avisa (sin fallar) con un Node no soportado, y el generador no lo repite', async () => {
+    const { main } = await import('../src/main');
+    const { ctxDePrueba } = await import('./helpers');
+    const t = await ctxDePrueba(registry('0.4.2').fetch);
+    t.ctx.nodeVersion = '23.7.0';
+    expect(await main(['create', 'x'], t.ctx)).toBe(0);
+    expect(t.err.join('\n')).toContain('Estás con Node 23.7.0; recomendamos Node 22 LTS (o 20/24)');
+    expect(t.procesos[0].env.HERMES_NODE_AVISADO).toBe('1');
+
+    const t2 = await ctxDePrueba(registry('0.4.2').fetch);
+    expect(await main(['create', 'x'], t2.ctx)).toBe(0);
+    expect(t2.err).toEqual([]);
+    expect(t2.procesos[0].env.HERMES_NODE_AVISADO).toBeUndefined();
   });
 });
+
+/** fetch falso del registry de npm: registra los paths pedidos. */
+function apiFalsaDeRegistry(handler: (path: string) => { status?: number; body: unknown } | undefined) {
+  const llamadas: string[] = [];
+  const fetch = (async (url: string) => {
+    const u = new URL(url);
+    llamadas.push(u.pathname);
+    const r = handler(u.pathname) ?? { status: 404, body: {} };
+    return new Response(JSON.stringify(r.body), { status: r.status ?? 200 });
+  }) as unknown as typeof globalThis.fetch;
+  return { fetch, llamadas };
+}
