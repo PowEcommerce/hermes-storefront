@@ -13,6 +13,9 @@
   `latest` de npm si es de la misma major, o la mínima conocida sin red). Con
   el rango `@^0`, npx reusaba una copia vieja de su caché (template y CLI
   viejos).
+- README: fuera de un proyecto, `npx --prefer-online @hermesecommerce/cli@latest
+  <comando>` (o `npm install -g @hermesecommerce/cli@latest`) en vez de
+  `npx @hermesecommerce/cli@^0`, por la misma caché de npx.
 - `hermes create`, `dev`, `preview` y `deploy` avisan (sin cortar) si la
   versión de Node no es una de las que soportan las dependencias de la
   tienda: «Estás con Node 23.7.0; recomendamos Node 22 LTS (o 20/24)».

@@ -5,6 +5,13 @@
 - Las tiendas nuevas piden `@hermesecommerce/cli@^0.3.0` (link sin preguntar
   el nombre del proyecto, `hermes create` sin caché vieja de npx, aviso de
   Node).
+- Sin rangos en `npx`: con `--no-install --link`, `hermes link` corre con la
+  CLI de **versión exacta** que pide el template
+  (`npx --yes --prefer-online @hermesecommerce/cli@0.3.0 link`), y para usar
+  la CLI fuera de la tienda sugiere
+  `npx --prefer-online @hermesecommerce/cli@latest <comando>` (o
+  `npm install -g @hermesecommerce/cli@latest`). Con `@^0`, npx reusaba una
+  copia vieja de su caché.
 - Avisa (sin cortar) si la versión de Node no es una de las que soportan las
   dependencias del template: «Estás con Node 23.7.0; recomendamos Node 22 LTS
   (o 20/24)». Si lo corre `hermes create`, el aviso sale una sola vez.

@@ -48,7 +48,7 @@ El comando se llama `hermes`, pero el paquete es `@hermesecommerce/cli`. No inst
 corras `npx hermes`: fuera de un proyecto con la CLI instalada, npm baja y
 ejecuta ese paquete ajeno. Usá `npm install -g @hermesecommerce/cli`, los
 scripts de la tienda (`npm run hermes -- <comando>`) o
-`npx @hermesecommerce/cli@^0 <comando>`.
+`npx --prefer-online @hermesecommerce/cli@latest <comando>` (con un rango como `@^0`, npx reusa la copia vieja que tenga en caché; `--prefer-online` + `` lo obliga a preguntarle a npm).
 
 ## Cómo lo prevenimos
 

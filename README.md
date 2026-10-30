@@ -29,7 +29,7 @@ Sin instalar nada global: `npm create @hermesecommerce/store mi-marca` y,
 dentro de la tienda, `npm run hermes -- login`, `npm run hermes -- link`, `npm run dev` y
 `npm run deploy`.
 
-Fuera de una tienda y sin instalar nada global: `npx @hermesecommerce/cli@^0 <comando>`.
+Fuera de una tienda y sin instalar nada global: `npx --prefer-online @hermesecommerce/cli@latest <comando>` (con un rango como `@^0`, npx reusa la copia vieja que tenga en caché; `--prefer-online` + `` lo obliga a preguntarle a npm), o instalala global con `npm i -g @hermesecommerce/cli@latest`.
 
 > **Ojo:** El comando se llama `hermes`, pero el paquete es `@hermesecommerce/cli`. No instales el paquete `hermes` de npm: es de un tercero.
 > Nunca uses `npx hermes`: sin la CLI instalada en el proyecto, baja y ejecuta ese paquete ajeno.
