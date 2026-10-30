@@ -222,7 +222,8 @@ const pesa = (spec) => Buffer.byteLength(JSON.stringify(spec));
 const SUBGRUPOS = {
   Catálogo: [
     { nombre: 'Listados y categorías', descripcion: 'El árbol de categorías del menú, los listados de productos (PLP) y sus filtros.', prefijos: ['/api/v2/products', '/api/v2/categories'] },
-    { nombre: 'Ficha de producto', descripcion: 'La ficha (PDP), productos por SKU, cambio de color y de variante, relacionados y «Completá tu look».', prefijos: ['/api/v2/items'] },
+    { nombre: 'Ficha de producto', descripcion: 'La ficha (PDP), productos por SKU y cómo resolver la variante de las opciones elegidas.', prefijos: ['/api/v2/items'] },
+    { nombre: 'Color, relacionados y look', descripcion: 'Cambiar de color en la ficha, los productos relacionados y «Completá tu look».', prefijos: ['/api/v2/items/{id}/change_variant', '/api/v2/items/{id}/related', '/api/v2/items/{id}/look'] },
     { nombre: 'Búsqueda', descripcion: 'El buscador: el panel antes de tipear, las sugerencias, la página de resultados y los eventos.', prefijos: ['/api/v2/search'] },
     { nombre: 'Catálogo crudo y sitemap', descripcion: 'El listado crudo del catálogo con sus facetas y los datos para armar el sitemap.', prefijos: ['/api/storefront'] },
   ],
@@ -230,7 +231,8 @@ const SUBGRUPOS = {
   Checkout: [
     { nombre: 'Estado e identificación', descripcion: 'El estado del checkout, la identificación del comprador invitado y su IP.', prefijos: ['/api/v2/checkout'] },
     { nombre: 'Envío', descripcion: 'Los métodos de entrega disponibles y cómo guardar el envío elegido.', prefijos: ['/api/v2/checkout/shipping'] },
-    { nombre: 'Cotización y retiro', descripcion: 'Cotizar el envío por código postal y listar las sucursales y los locales para retirar.', prefijos: ['/api/v2/checkout/shipping/quote', '/api/v2/checkout/shipping/stores', '/api/v2/checkout/shipping/subsidiaries'] },
+    { nombre: 'Cotización del envío', descripcion: 'Cotizar el envío por código postal antes de elegirlo.', prefijos: ['/api/v2/checkout/shipping/quote'] },
+    { nombre: 'Sucursales y locales', descripcion: 'Las sucursales del correo y los locales de la marca para retirar.', prefijos: ['/api/v2/checkout/shipping/stores', '/api/v2/checkout/shipping/subsidiaries'] },
     { nombre: 'Facturación y geografía', descripcion: 'Guardar la facturación, y las provincias, ciudades y códigos postales para los formularios de dirección.', prefijos: ['/api/v2/checkout/billing', '/api/v2/geo'] },
     { nombre: 'Pago y confirmación', descripcion: 'Los medios de pago habilitados, pagar con cada uno y la confirmación de la orden.', prefijos: ['/api/v2/checkout/payment', '/api/v2/checkout/orders'] },
   ],
