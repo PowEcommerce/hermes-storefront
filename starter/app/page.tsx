@@ -37,6 +37,12 @@ async function HomeSinBloques() {
 
   return (
     <div className="space-y-14">
+      {process.env.NODE_ENV === 'development' && (
+        // Sólo en desarrollo (`hermes dev`): en producción no se muestra.
+        <p role="note" className="rounded-brand border border-dashed border-border px-4 py-2 text-sm text-muted-fg">
+          Esta es la home de ejemplo: cargá la tuya desde el admin (Contenido › Página de inicio).
+        </p>
+      )}
       <section className="flex min-h-[340px] flex-col items-start justify-center gap-5 rounded-brand bg-primary px-8 py-14 text-primary-fg md:px-14">
         <p className="text-sm uppercase tracking-widest opacity-80">Nueva temporada</p>
         <h1 className="max-w-xl text-4xl font-semibold md:text-5xl">{brand.name}</h1>
