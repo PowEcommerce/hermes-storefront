@@ -64,11 +64,13 @@ varios developers trabajan sobre él, como en Hydrogen/Oxygen:
   /api/cli/tenants/<marca>/projects`) y, si hay uno, **linkea ése sin
   preguntar el nombre**. Si hay varios, elegís de la lista (URL de producción
   y fecha del último deploy); «Crear un proyecto nuevo» aparece sólo si el
-  plan tiene lugar. Si no hay ninguno, pregunta el nombre y lo crea.
+  plan tiene lugar. Si no hay ninguno, lo crea con el **ID de la marca**
+  como nombre, sin preguntar.
 - Cuenta como proyecto uno con deploys en el hosting (son los que cuenta el
   plan) o, en una marca sin hosting, uno que tiene tokens de storefront
   vigentes. Listar no pide ser admin: alcanza con tener acceso a la marca.
-- `hermes link --name <proyecto>` fuerza uno. Si no existe y el plan ya
+- `hermes link --project <proyecto>` fuerza uno (casos raros; `--name`
+  sigue andando). Si no existe y el plan ya
   llegó a su tope, falla en el link con el nombre del que existe, no en el
   `hermes deploy`.
 - Si `.hermes/project.json` apunta a un proyecto que la marca no tiene, el
@@ -77,8 +79,8 @@ varios developers trabajan sobre él, como en Hydrogen/Oxygen:
   su URL de preview, sin tocar producción. **Producción** sale de `main`
   desde CI con un token de deploy (`hermes deploy-token create`; ver
   [Trabajar en equipo](./guia-agencias.md#trabajar-en-equipo)).
-- Con una API anterior (sin la lista), `hermes link` pregunta el nombre como
-  antes.
+- Con una API anterior (sin la lista), `hermes link` usa el de
+  `.hermes/project.json` o el ID de la marca, sin preguntar.
 
 ## Los tokens
 
