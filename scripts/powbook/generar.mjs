@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { aSpec, titulos, inline } from './markdown.mjs';
+import { aSpec, titulos, textoPlano } from './markdown.mjs';
 import { crearReferencia } from './openapi.mjs';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -28,6 +28,10 @@ const opcion = (nombre, porDefecto) => {
 };
 const WS = opcion('--workspace', 'storefront-hermes');
 const SALIDA = path.resolve(opcion('--salida', path.join(RAIZ, 'scripts/powbook/salida')));
+
+// Tipo de documento en Powbook: documentación técnica (VitePress + Redoc). Lo
+// piden los bloques api_operacion y hero; publish_page lo recibe como `tipo`.
+const TIPO = 'tecnica';
 
 const leer = (rel) => fs.readFileSync(path.join(RAIZ, rel), 'utf8');
 
@@ -141,21 +145,27 @@ for (const parte of partes) {
 
 // ───────────── Links ─────────────
 
+/** Link de cada página de Powbook (las fijas y las partes de la guía) → su título. */
+const TITULOS = new Map(Object.values(P).map((r) => [url(r), r.at(-1)]));
+for (const parte of partes) TITULOS.set(url(parte.ruta), parte.ruta.at(-1));
+
 /** Cómo queda un link de un .md del repo (`origen`) en Powbook. */
 function resolverDe(origen, rutaPagina) {
-  return (destino) => {
-    const enGithub = destino.match(new RegExp(`^${GITHUB.replace(/[.]/g, '\\.')}/(?:blob|tree)/main/([^#]+?)/?(#.*)?$`));
-    if (enGithub) {
-      if (RUTAS[enGithub[1]]) return url(RUTAS[enGithub[1]]) + (enGithub[2] ?? '');
-      return destino;
-    }
-    if (/^[a-z][a-z0-9+.-]*:/i.test(destino) || destino.startsWith('//')) return destino;
+  const resolver = (destino) => {
+    // Un link absoluto a un archivo del repo en GitHub (`…/blob/main/docs/x.md#ancla`,
+    // como los de los README que se leen en npm) se resuelve igual que uno relativo;
+    // si el archivo no tiene página en Powbook, queda el link a GitHub.
+    const enGithub = destino.match(new RegExp(`^${GITHUB.replace(/[.]/g, '\\.')}/(?:blob|tree)/main/([^#]+?)/?(?:#(.*))?$`));
+    if (enGithub && !RUTAS[enGithub[1]] && enGithub[1] !== GUIA) return destino;
+    if (!enGithub && (/^[a-z][a-z0-9+.-]*:/i.test(destino) || destino.startsWith('//'))) return destino;
     // Una ruta del sitio de VitePress (`/guias/agencias#…`) o un link ya resuelto.
     if (destino.startsWith('/')) return RUTAS_DEL_SITIO[destino.split('#')[0]] ? linkDelSitio(destino) : destino;
-    const [ruta, ancla] = destino.split('#');
-    const repo = ruta
-      ? path.posix.normalize(path.posix.join(path.posix.dirname(origen), ruta)).replace(/\/$/, '')
-      : origen;
+    const [ruta, ancla] = enGithub ? [enGithub[1], enGithub[2]] : destino.split('#');
+    const repo = enGithub
+      ? enGithub[1]
+      : ruta
+        ? path.posix.normalize(path.posix.join(path.posix.dirname(origen), ruta)).replace(/\/$/, '')
+        : origen;
     if (repo === GUIA) {
       const a = ancla ? anclasGuia.get(ancla) : null;
       if (a) {
@@ -174,6 +184,9 @@ function resolverDe(origen, rutaPagina) {
     }
     return `${GITHUB}/${carpeta ? 'tree' : 'blob'}/main/${repo}${ancla ? `#${ancla}` : ''}`;
   };
+  // El título de la página a la que lleva un link ya resuelto (para los links cuyo texto es un path).
+  resolver.titulo = (resuelto) => (resuelto.startsWith('/') ? TITULOS.get(resuelto.split('#')[0]) ?? null : null);
+  return resolver;
 }
 
 /** Un link de una ruta del sitio (`/guias/agencias#tu-dominio`) → Powbook. */
@@ -205,14 +218,30 @@ const mdEntero = (rel, ruta) => aSpec(leer(rel), { resolver: resolverDe(rel, rut
   const resolver = resolverDe('site/index.md', P.inicio);
   const spec = [];
   if (meta.hero) {
-    spec.push(['parrafo', `**${meta.hero.name}: ${meta.hero.text}.** ${inline(meta.hero.tagline ?? '')}`]);
-    const acciones = (meta.hero.actions ?? []).map((a) => `[${a.text}](${resolver(a.link)})`);
-    if (acciones.length) spec.push(['parrafo', `Empezá por acá: ${acciones.join(' · ')}.`]);
+    // La portada de VitePress (hero): nombre, texto, bajada y botones.
+    spec.push([
+      'hero',
+      {
+        nombre: meta.hero.name,
+        ...(meta.hero.text ? { texto: meta.hero.text } : {}),
+        ...(meta.hero.tagline ? { tagline: textoPlano(meta.hero.tagline) } : {}),
+        acciones: (meta.hero.actions ?? []).map((a) => ({
+          texto: a.text,
+          link: resolver(a.link),
+          tema: a.theme === 'brand' ? 'brand' : 'alt',
+        })),
+      },
+    ]);
   }
   if (meta.features?.length) {
     spec.push([
       'tarjetas',
-      meta.features.map((f) => ({ titulo: f.title, descripcion: f.details, link: f.link ? resolver(f.link) : '' })),
+      meta.features.map((f) => ({
+        titulo: f.title,
+        descripcion: f.details,
+        link: f.link ? resolver(f.link) : '',
+        ...(f.linkText ? { texto_link: f.linkText } : {}),
+      })),
     ]);
   }
   spec.push(...aSpec(cuerpo, { resolver }));
@@ -307,6 +336,16 @@ for (const p of paginas) {
   if (!p.spec.length) problemas.push(`${donde}: sin bloques`);
   if (p.spec.length > 400) problemas.push(`${donde}: ${p.spec.length} bloques (máximo 400)`);
   for (const b of p.spec) {
+    if (b[0] === 'api_operacion') {
+      const datos = JSON.stringify(b[1]);
+      if (datos.length > 400_000) problemas.push(`${donde}: la operación ${b[1].metodo} ${b[1].path} pesa ${datos.length} caracteres (máximo 400 KB)`);
+      for (const r of [b[1].cuerpo, ...(b[1].respuestas ?? [])]) {
+        if (r?.ejemplo && r.ejemplo.length > 100_000) problemas.push(`${donde}: un ejemplo de ${b[1].metodo} ${b[1].path} de ${r.ejemplo.length} caracteres`);
+      }
+      if ((b[1].parametros ?? []).length > 60) problemas.push(`${donde}: ${b[1].metodo} ${b[1].path} tiene más de 60 parámetros`);
+      continue;
+    }
+    if (b[0] === 'hero') continue;
     const textos = b[0] === 'tabla' ? b[1].flat() : b[0] === 'lista' ? b[1] : b[0] === 'codigo' ? [] : [b[0] === 'paso' ? b[2] : b[1]];
     for (const t of textos) if (typeof t === 'string' && t.length > (b[0] === 'tabla' ? 2000 : 4000)) problemas.push(`${donde}: un ${b[0]} de ${t.length} caracteres`);
     if (b[0] === 'codigo' && b[1].length > 20000) problemas.push(`${donde}: código de ${b[1].length} caracteres`);
@@ -326,9 +365,9 @@ fs.rmSync(SALIDA, { recursive: true, force: true });
 fs.mkdirSync(SALIDA, { recursive: true });
 const indice = paginas.map((p, i) => {
   const archivo = `${String(i + 1).padStart(2, '0')}-${p.ruta.map(slugify).join('--')}.json`;
-  fs.writeFileSync(path.join(SALIDA, archivo), `${JSON.stringify({ workspace: p.workspace, ruta: p.ruta, spec: p.spec }, null, 2)}\n`);
+  fs.writeFileSync(path.join(SALIDA, archivo), `${JSON.stringify({ workspace: p.workspace, ruta: p.ruta, tipo: TIPO, spec: p.spec }, null, 2)}\n`);
   return { archivo, ruta: p.ruta, link: url(p.ruta), fuente: p.fuente, bloques: p.spec.length };
 });
-fs.writeFileSync(path.join(SALIDA, 'indice.json'), `${JSON.stringify({ workspace: WS, paginas: indice }, null, 2)}\n`);
+fs.writeFileSync(path.join(SALIDA, 'indice.json'), `${JSON.stringify({ workspace: WS, tipo: TIPO, paginas: indice }, null, 2)}\n`);
 console.log(`${paginas.length} páginas en ${path.relative(process.cwd(), SALIDA) || '.'}:`);
 for (const p of indice) console.log(`  ${p.archivo.padEnd(58)} ${String(p.bloques).padStart(3)} bloques  ${p.ruta.join(' › ')}`);

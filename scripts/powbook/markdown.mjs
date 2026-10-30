@@ -3,13 +3,14 @@
 //
 // El spec es una lista de bloques: ["parrafo", texto], ["titulo", texto, {}],
 // ["titulo3", texto], ["paso", n, texto], ["lista", [textos]],
-// ["callout", texto, estilo], ["codigo", texto, lenguaje] y ["tabla", filas].
+// ["callout", texto, estilo, titulo?], ["codigo", texto, lenguaje] y ["tabla", filas].
 // El inline (negrita, itálica, `código` y [links](url)) queda en Markdown:
 // Powbook lo arma.
 //
 // Cubre lo que usan los .md de este repo: títulos, párrafos, listas (con un
 // nivel de anidado), bloques de código (también dentro de una lista), tablas,
-// citas (`> **Ojo:** …` → aviso) y contenedores de VitePress (`::: warning`).
+// citas (`> …` → cita, `> [!WARNING]` → aviso) y contenedores de VitePress
+// (`::: warning Título` → aviso con título), como los muestra el sitio.
 // ============================================================
 
 /** El slug de un título, igual al de VitePress (y al de las anclas de Powbook). */
@@ -79,6 +80,11 @@ export function titulos(md) {
 
 // ───────────── Inline ─────────────
 
+/** Si el texto de un link es un path de archivo o carpeta (sin espacios; no un paquete `@scope/x`). */
+export function esPath(texto) {
+  return !/\s/.test(texto) && !texto.startsWith('@') && /(^\.{1,2}\/|\/|\.[a-z0-9]{1,5}$)/i.test(texto) && !/^[a-z][a-z0-9+.-]*:/i.test(texto);
+}
+
 /**
  * Inline de Markdown → el inline que entiende Powbook. Powbook no anida
  * estilos dentro de un link: `[`x`](u)` y `**[x](u)**` quedan como `[x](u)`.
@@ -99,24 +105,20 @@ export function inline(texto, resolver) {
   t = t.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, txt, url) => {
     const limpio = txt.replace(/[`*]/g, '');
     const destino = resolver ? resolver(url) : url;
-    return `[${limpio}](${destino})`;
+    // Si el texto es el path de un archivo del repo (`cli.md`, `docs/cli.md`,
+    // `packages/storefront/openapi.yaml`) y el link va a una página de Powbook,
+    // el texto pasa a ser el título de esa página.
+    const titulo = esPath(limpio) ? resolver?.titulo?.(destino) : null;
+    return `[${titulo ?? limpio}](${destino})`;
   });
   return t.replace(/\s+/g, ' ').trim();
 }
 
 // ───────────── Bloques ─────────────
 
-const AVISOS = [
-  { re: /^\*\*(ojo|atenci[oó]n|cuidado|importante|limitaci[oó]n[^*]*|no )/i, estilo: 'warning' },
-  { re: /^\*\*(tip|consejo|recomendado)/i, estilo: 'success' },
-  { re: /^\*\*(peligro|nunca)/i, estilo: 'danger' },
-];
-
-function estiloDeCita(texto) {
-  return AVISOS.find((a) => a.re.test(texto))?.estilo ?? 'info';
-}
-
-const CONTENEDOR = { tip: 'success', info: 'info', warning: 'warning', danger: 'danger', details: 'info', note: 'info' };
+// Los custom blocks de VitePress (y las alertas de GitHub) → el estilo del aviso.
+// El workspace de Powbook es de documentación técnica: tip y cita existen tal cual.
+const CONTENEDOR = { tip: 'tip', info: 'info', warning: 'warning', danger: 'danger', details: 'info', note: 'info', important: 'tip', caution: 'danger' };
 
 function filas(bloque) {
   const celdas = (l) => {
@@ -221,9 +223,9 @@ export function aSpec(md, { resolver, niveles = { 1: null, 2: 'titulo', 3: 'titu
       i++;
       while (i < ls.length && !/^:::\s*$/.test(ls[i].texto)) cuerpo.push(ls[i++].texto);
       i++;
-      const titulo = cont[2].trim();
-      const texto = [titulo ? `**${titulo}.**` : '', inl(cuerpo.join(' '))].filter(Boolean).join(' ');
-      spec.push(['callout', texto, CONTENEDOR[cont[1]] ?? 'info']);
+      const titulo = textoPlano(cont[2].trim());
+      const texto = inl(cuerpo.join(' ')) || titulo;
+      spec.push(titulo ? ['callout', texto, CONTENEDOR[cont[1]] ?? 'info', titulo] : ['callout', texto, CONTENEDOR[cont[1]] ?? 'info']);
       continue;
     }
 
@@ -234,8 +236,10 @@ export function aSpec(md, { resolver, niveles = { 1: null, 2: 'titulo', 3: 'titu
         cuerpo.push(ls[i].texto.replace(/^\s*>\s?/, ''));
         i++;
       }
-      const texto = inl(cuerpo.join(' ').replace(/^\[!(\w+)\]\s*/, ''));
-      if (texto) spec.push(['callout', texto, estiloDeCita(texto)]);
+      // `> [!WARNING]` (alerta de GitHub, VitePress la muestra como aviso); si no, una cita.
+      const alerta = cuerpo.join(' ').match(/^\s*\[!(\w+)\]\s*/);
+      const texto = inl(cuerpo.join(' ').replace(/^\s*\[!(\w+)\]\s*/, ''));
+      if (texto) spec.push(['callout', texto, alerta ? (CONTENEDOR[alerta[1].toLowerCase()] ?? 'info') : 'cita']);
       continue;
     }
 
@@ -279,11 +283,27 @@ export function aSpec(md, { resolver, niveles = { 1: null, 2: 'titulo', 3: 'titu
         const m = li.texto.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
         if (!m) {
           if (li.codigo) break;
+          // Tabla sangrada dentro de un ítem o de un paso: Powbook no anida
+          // bloques en una lista, así que se corta la lista, va la tabla como
+          // bloque propio y la lista sigue después.
+          if (/^\s+\|/.test(li.texto)) {
+            cerrarLista();
+            const bloque = [];
+            while (i < ls.length && !ls[i].codigo && /^\s+\|/.test(ls[i].texto)) bloque.push(ls[i++].texto);
+            const f = filas(bloque).map((fila) => fila.map(inl));
+            if (f.length >= 2) spec.push(['tabla', f]);
+            else if (f.length === 1) spec.push(['parrafo', f[0].join(' · ')]);
+            continue;
+          }
           // Continuación del ítem anterior (línea sangrada o pegada).
           if (/^\s+\S/.test(li.texto) || !empiezaBloque(li)) {
             const ultimo = spec.length && items.length === 0 ? spec[spec.length - 1] : null;
+            const sangrada = /^\s+\S/.test(li.texto);
             if (items.length) items[items.length - 1] += ` ${li.texto.trim()}`;
             else if (ultimo && ultimo[0] === 'paso') ultimo[2] = `${ultimo[2]} ${li.texto.trim()}`;
+            // El texto que sigue a una tabla anidada es un párrafo propio (del mismo ítem).
+            else if (ultimo && ultimo[0] === 'parrafoDeLista') ultimo[1] = `${ultimo[1]} ${li.texto.trim()}`;
+            else if (ultimo && ultimo[0] === 'tabla' && sangrada) spec.push(['parrafoDeLista', li.texto.trim()]);
             else break;
             i++;
             continue;
@@ -318,6 +338,7 @@ export function aSpec(md, { resolver, niveles = { 1: null, 2: 'titulo', 3: 'titu
   return spec.map((b) => {
     if (b[0] === 'paso') return ['paso', b[1], inl(b[2])];
     if (b[0] === 'lista') return ['lista', b[1].map(inl)];
+    if (b[0] === 'parrafoDeLista') return ['parrafo', inl(b[1])];
     return b;
   });
 }

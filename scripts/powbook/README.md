@@ -25,7 +25,9 @@ node scripts/powbook/generar.mjs
 ```
 
 Deja en `scripts/powbook/salida/` (ignorada por git) un JSON por página con
-`{ workspace, ruta, spec }` y un `indice.json` con el orden de publicación. No
+`{ workspace, ruta, tipo, spec }` y un `indice.json` con el orden de publicación.
+`tipo` es `"tecnica"`: el workspace se lee como documentación técnica (el look
+de VitePress + Redoc de este sitio), no como un manual. No
 toca Powbook. Necesita las dependencias del SDK instaladas (`npm ci` en
 `packages/storefront`: usa su `js-yaml` para leer la OpenAPI).
 
@@ -44,31 +46,44 @@ columnas) o si la guía cambió de forma que ya no se puede partir (renombraron
   subtítulo. Las secciones de la guía que quedan como página propia pierden su
   propio título.
 - **Código, tablas y listas** pasan tal cual (con un nivel de anidado; los
-  subítems quedan como ítems). Una lista numerada queda como pasos.
-- **Avisos:** una cita (`> **Ojo:** …`) es un aviso: `warning` si empieza con
-  Ojo, Atención, Importante o Limitación; `success` con Tip; si no, `info`. Los
-  contenedores de VitePress (`::: warning Título`) también.
+  subítems quedan como ítems). Una lista numerada queda como pasos. Una tabla
+  sangrada dentro de un ítem o un paso sale como bloque de tabla propio después
+  del ítem (Powbook no anida bloques en una lista), y el texto que la sigue en
+  ese ítem queda como párrafo.
+- **Avisos y citas:** como en el sitio. Un contenedor de VitePress
+  (`::: warning Título`) es un aviso de ese estilo (`tip`, `info`, `warning`,
+  `danger`) con su título; una alerta de GitHub (`> [!WARNING]`), también. Una
+  cita común (`> …`) queda como cita.
 - **Links:** un link a un archivo del repo que tiene página en Powbook va a esa
   página (`/storefront-hermes/guias/la-cli`), y uno a una sección de la guía va
   a la página y al título donde quedó (`…/guias/dominios-propios`,
-  `…/storefront-api/webhooks#verificar-la-firma`). Lo demás va a GitHub.
+  `…/storefront-api/webhooks#verificar-la-firma`). Vale también para los links
+  absolutos a GitHub (`…/blob/main/docs/guia-agencias.md#trabajar-en-equipo`,
+  los de los README que se leen en npm). Si el texto del link es un path
+  (`cli.md`, `packages/storefront/openapi.yaml`), pasa a ser el título de la
+  página. Lo demás va a GitHub.
   Powbook lleva esos links a la vista pública cuando se leen sin login.
-- **Referencia de la API:** por operación, el método y la ruta, la
-  descripción, la autenticación, los parámetros, el cuerpo, las respuestas y un
-  ejemplo de respuesta armado desde el schema. Es estática: no tiene «try it» ni
-  le pega a la API.
+- **Inicio:** el hero y las tarjetas de `site/index.md` van como bloques
+  `hero` y `tarjetas` (con el texto de cada link).
+- **Referencia de la API:** cada operación es un bloque `api_operacion` que
+  Powbook muestra como Redoc: método y ruta, descripción, autorización,
+  parámetros por ubicación, cuerpo y respuestas con el schema como árbol
+  desplegable (los `$ref` se resuelven acá, cortando los ciclos), y a la
+  derecha los ejemplos por código armados desde el schema. Es estática: no
+  tiene «try it» ni le pega a la API.
 
 ## Publicar
 
 Se publica con el conector **Powbook** de Claude (`publish_page`), página por
 página y en el orden de `indice.json` (las secciones antes que sus páginas).
 Hace falta ser editor del workspace y que el conector acepte los bloques
-`codigo`, `tabla` y `tarjetas`.
+`api_operacion` y `hero` y el parámetro `tipo` (y que Powbook tenga el estilo de
+documentación técnica deployado).
 
 1. Generar las páginas (arriba).
 2. Pedirle a Claude que publique `scripts/powbook/salida/` en Powbook: por cada
-   página llama `publish_page` **sin** `confirm`, con `workspace`, `ruta` y
-   `spec` del JSON, y muestra la vista previa (crear o reemplazar, y la página
+   página llama `publish_page` **sin** `confirm`, con `workspace`, `ruta`,
+   `tipo` y `spec` del JSON, y muestra la vista previa (crear o reemplazar, y la página
    en Markdown).
 3. Revisar las vistas previas y dar el OK. Recién ahí se repite cada llamada con
    `confirm: true`.
