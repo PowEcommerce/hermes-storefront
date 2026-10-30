@@ -25,15 +25,24 @@ export const VERSIONES_PUBLICADAS: Record<string, string> = {
   '@hermesecommerce/cli': '^0.3.0',
 };
 
-/** Major de una versión ("^0.1.0" → 0). */
-const major = (v: string) => Number(/(\d+)/.exec(v)?.[1] ?? '0');
+/**
+ * La CLI que corre `npx` cuando no está instalada en la tienda (`--no-install
+ * --link`): la versión EXACTA que pide el template (`^0.3.0` → `0.3.0`),
+ * nunca un rango. Con `@^0`, npx reusa la copia que tenga en su caché si
+ * cumple el rango, sin mirar npm (una CLI vieja). Se corre con
+ * `--prefer-online` (ver `NPX_CLI_ARGS`).
+ */
+export const CLI_NPX = `@hermesecommerce/cli@${VERSIONES_PUBLICADAS['@hermesecommerce/cli'].replace(/^[\^~]/, '')}`;
+
+/** `npx …` para correr la CLI publicada: versión exacta y sin confiar en la caché. */
+export const NPX_CLI_ARGS = ['--yes', '--prefer-online', CLI_NPX];
 
 /**
- * La CLI que corre `npx` cuando no está instalada en la tienda: fijada a la
- * major que pide el template (`@hermesecommerce/cli@^0`), nunca "lo último que
- * haya" en npm.
+ * Lo que se le sugiere a la persona para correr la CLI fuera de la tienda
+ * (más adelante, cuando la versión de hoy ya puede ser vieja): la última, y
+ * `--prefer-online` para que npx no use la de su caché.
  */
-export const CLI_NPX = `@hermesecommerce/cli@^${major(VERSIONES_PUBLICADAS['@hermesecommerce/cli'])}`;
+export const NPX_CLI_SUGERIDO = 'npx --prefer-online @hermesecommerce/cli@latest';
 
 export type Pm = 'npm' | 'pnpm' | 'yarn' | 'bun';
 
@@ -273,11 +282,11 @@ export async function crear(argv: string[], ctx: Ctx): Promise<number> {
     }
     if (correrLink) {
       // La CLI del proyecto por su ruta; si el install no la dejó, la publicada
-      // por su nombre completo y versión (@hermesecommerce/cli@^0), nunca `hermes` a secas.
+      // por su nombre completo y versión exacta (@hermesecommerce/cli@0.3.0), nunca `hermes` a secas.
       const bin = binLocal(destino);
       const local =
         (await existe(join(destino, 'node_modules', '@hermesecommerce', 'cli', 'package.json'))) && (await existe(bin));
-      const [cmd, args]: [string, string[]] = local ? [bin, ['link']] : ['npx', ['--yes', CLI_NPX, 'link']];
+      const [cmd, args]: [string, string[]] = local ? [bin, ['link']] : ['npx', [...NPX_CLI_ARGS, 'link']];
       const code = await ctx.run(cmd, args, { cwd: destino });
       linkeado = code === 0;
       if (!linkeado) ctx.err('⚠ `hermes link` no terminó bien: corrélo de nuevo dentro de la carpeta.');
@@ -295,9 +304,9 @@ export async function crear(argv: string[], ctx: Ctx): Promise<number> {
   pasos.push('hermes domains add <tu-dominio>  # o desde el admin de la marca');
   for (const p of pasos) ctx.out(`  ${p}`);
   ctx.out(
-    `\n¿Sin la CLI global? \`npm install -g @hermesecommerce/cli\` (una vez), o usá la que trae la tienda: ` +
+    `\n¿Sin la CLI global? \`npm install -g @hermesecommerce/cli@latest\` (una vez), o usá la que trae la tienda: ` +
       `\`${hermesLocal(pm)}<comando>\`, \`${correr(pm, 'dev')}\` y \`${correr(pm, 'deploy')}\`. ` +
-      `Fuera de la tienda: \`npx ${CLI_NPX} <comando>\` (no instales el paquete \`hermes\` de npm: es de un tercero).`,
+      `Fuera de la tienda: \`${NPX_CLI_SUGERIDO} <comando>\` (no instales el paquete \`hermes\` de npm: es de un tercero).`,
   );
   ctx.out('Guía: README.md de la tienda.\n');
   return 0;

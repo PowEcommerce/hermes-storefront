@@ -114,7 +114,7 @@ describe('create-store', () => {
     expect(texto).not.toMatch(/npx (--yes )?@hermesecommerce\/cli (link|dev)/);
     expect(texto).toContain('npm install -g @hermesecommerce/cli');
     expect(texto).toContain('`npm run hermes -- <comando>`, `npm run dev` y `npm run deploy`');
-    expect(texto).toContain('`npx @hermesecommerce/cli@^0 <comando>`');
+    expect(texto).toContain('`npx --prefer-online @hermesecommerce/cli@latest <comando>`');
     expect(texto).not.toMatch(/npx (--yes |--no )?hermes\b/);
     expect(texto).not.toContain('  npm install');
   });
@@ -197,14 +197,14 @@ describe('create-store', () => {
     const pre = await ctxDePrueba();
     await loguearCli(pre.ctx.env.HERMES_CONFIG_DIR!);
     expect(await crear(['tienda', '--no-install', '--link'], pre.ctx)).toBe(0);
-    expect(pre.corridas.map((c) => [c.cmd, ...c.args].join(' '))).toEqual(['npx --yes @hermesecommerce/cli@^0 link']);
+    expect(pre.corridas.map((c) => [c.cmd, ...c.args].join(' '))).toEqual([`npx --yes --prefer-online @hermesecommerce/cli@${VERSIONES_PUBLICADAS['@hermesecommerce/cli'].slice(1)} link`]);
   });
 
   it('si el install no dejó la CLI del proyecto, linkea con la publicada', async () => {
     const pre = await ctxDePrueba({ interactive: true, respuestas: ['1', 's'] });
     await loguearCli(pre.ctx.env.HERMES_CONFIG_DIR!);
     await crear(['tienda'], pre.ctx);
-    expect(pre.corridas.map((c) => [c.cmd, ...c.args].join(' '))).toEqual(['npm install', 'npx --yes @hermesecommerce/cli@^0 link']);
+    expect(pre.corridas.map((c) => [c.cmd, ...c.args].join(' '))).toEqual(['npm install', `npx --yes --prefer-online @hermesecommerce/cli@${VERSIONES_PUBLICADAS['@hermesecommerce/cli'].slice(1)} link`]);
   });
 
   it('con la CLI logueada y "n", no linkea', async () => {

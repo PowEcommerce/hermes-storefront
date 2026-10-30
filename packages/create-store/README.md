@@ -29,8 +29,8 @@ npm create @hermesecommerce/store mi-tienda -- --template skeleton
    saltearlo e imprimir los comandos).
 5. Si tenés la CLI de Hermes logueada (`hermes login`), te ofrece correr
    `hermes link` ahí mismo con la CLI que se acaba de instalar en la tienda
-   (`node_modules/.bin/hermes link`; con `--no-install --link`, la publicada:
-   `npx @hermesecommerce/cli@^0 link`). `--link` /
+   (`node_modules/.bin/hermes link`; con `--no-install --link`, la publicada con
+   versión exacta: `npx --yes --prefer-online @hermesecommerce/cli@<versión> link`). `--link` /
    `--no-link` para no preguntar.
 6. Imprime los próximos pasos con la CLI global (`hermes login`, `hermes
    link`, `hermes dev`, `hermes deploy`, `hermes domains add`) y la

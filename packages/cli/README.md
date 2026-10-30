@@ -6,7 +6,7 @@ Binario: `hermes`. Para arrancar una tienda desde cero, el
 [starter](https://github.com/PowEcommerce/hermes-storefront/tree/main/starter): `hermes create` (= `npm create @hermesecommerce/store`).
 
 ```bash
-npm install -g @hermesecommerce/cli   # o, sin instalar nada global: npx @hermesecommerce/cli@^0 <comando>
+npm install -g @hermesecommerce/cli@latest   # o, sin instalar nada global: npx --prefer-online @hermesecommerce/cli@latest <comando>
 ```
 
 > **Ojo:** El comando se llama `hermes`, pero el paquete es `@hermesecommerce/cli`. No instales el paquete `hermes` de npm: es de un tercero. Por eso nunca uses `npx hermes`: fuera de un proyecto
@@ -38,7 +38,7 @@ proyecto. **Sin instalar nada global** también anda: `npm create
 `npm run hermes -- link`, `npm run dev`, `npm run deploy` y `npm run hermes -- domains add …`.
 
 En un proyecto que no la trae como dependencia: `hermes <comando>` con la
-global, o `npx @hermesecommerce/cli@^0 <comando>`.
+global, o `npx --prefer-online @hermesecommerce/cli@latest <comando>` (con un rango como `@^0`, npx reusa la copia vieja que tenga en caché; `--prefer-online` + `` lo obliga a preguntarle a npm).
 
 Queda en tu `.env` (sin tocar el resto de tus variables):
 

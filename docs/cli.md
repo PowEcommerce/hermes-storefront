@@ -31,7 +31,7 @@ queda con otro nombre (`"dev:next": "next dev"`, `"build": "next build"`,
 `hermes deploy` deja que `@opennextjs/cloudflare` corra `build`.
 
 > **Ojo:** El comando se llama `hermes`, pero el paquete es `@hermesecommerce/cli`. No instales el paquete `hermes` de npm: es de un tercero. Nunca uses `npx hermes`: dentro de la tienda,
-> `npm run hermes -- <comando>`; fuera, `npx @hermesecommerce/cli@^0 <comando>`.
+> `npm run hermes -- <comando>`; fuera, `npx --prefer-online @hermesecommerce/cli@latest <comando>` (con un rango como `@^0`, npx reusa la copia vieja que tenga en caché; `--prefer-online` + `` lo obliga a preguntarle a npm), o `npm i -g @hermesecommerce/cli@latest`.
 
 **Regla de oro: la CLI no te da más poder que el backoffice.** Entra con tu
 mismo usuario y sus mismos accesos.

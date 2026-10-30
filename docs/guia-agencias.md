@@ -43,7 +43,7 @@ instalar nada. Si tu `hermes` global es de otra versión, avisa y corre la del
 proyecto. **Sin instalar nada global** también anda: `npm create
 @hermesecommerce/store mi-marca` y, dentro de la tienda, `npm run hermes -- login`,
 `npm run hermes -- link`, `npm run dev`, `npm run deploy` y `npm run hermes -- domains add …`.
-Fuera de un proyecto: `npx @hermesecommerce/cli@^0 <comando>`.
+Fuera de un proyecto: `npx --prefer-online @hermesecommerce/cli@latest <comando>` (con un rango como `@^0`, npx reusa la copia vieja que tenga en caché; `--prefer-online` + `` lo obliga a preguntarle a npm), o instalala global con `npm i -g @hermesecommerce/cli@latest`.
 
 > **Ojo:** El comando se llama `hermes`, pero el paquete es `@hermesecommerce/cli`. No instales el paquete `hermes` de npm: es de un tercero.
 > Nunca uses `npx hermes`.
@@ -492,7 +492,7 @@ privado **desactiva sus webhooks** y corta los reintentos pendientes: con el
 token nuevo volvés a crear las suscripciones.
 
 **Con la CLI (si tenés usuario del backoffice).** `hermes login` (o `npx
-@hermesecommerce/cli login` sin instalarla) y después `hermes link` en la carpeta del proyecto: elegís la marca, se
+--prefer-online @hermesecommerce/cli@latest login` sin instalarla) y después `hermes link` en la carpeta del proyecto: elegís la marca, se
 crean el público y el privado (con `webhooks:manage`, vinculado al público) y
 se escriben en tu `.env`. Pide ser admin de la marca. Volver a linkear el
 mismo proyecto con la misma cuenta **rota** sus tokens (los anteriores se revocan; los de otra agencia o de Pow no se tocan). Más en
