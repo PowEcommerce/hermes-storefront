@@ -201,6 +201,76 @@ function linkDelSitio(destino) {
   return url(RUTAS[repo], a);
 }
 
+// ───────────── Referencia de la API: grupos grandes en subpáginas ─────────────
+
+/**
+ * Hasta cuánto puede pesar el spec de una página de la referencia (JSON
+ * minificado, en bytes). publish_page recibe la página entera en una sola
+ * llamada y las de más de ~75 KB no entran: un grupo que pesa más se parte.
+ */
+const MAX_REFERENCIA = 60_000;
+const pesa = (spec) => Buffer.byteLength(JSON.stringify(spec));
+
+/**
+ * Cómo se parte cada grupo (tag) de la OpenAPI cuando no entra en una página,
+ * en el orden de las subpáginas. Una operación va al subgrupo con el prefijo de
+ * path más largo que le corresponde (`/a/b` agarra `/a/b` y `/a/b/…`, no
+ * `/a/bc`). Una operación con `x-subgrupo` en la OpenAPI va a ese subgrupo
+ * (gana sobre el prefijo). Un grupo que no está acá se parte solo, por el
+ * primer segmento del path después de `/api/v2` (o `/api`).
+ */
+const SUBGRUPOS = {
+  Catálogo: [
+    { nombre: 'Listados y categorías', descripcion: 'El árbol de categorías del menú, los listados de productos (PLP) y sus filtros.', prefijos: ['/api/v2/products', '/api/v2/categories'] },
+    { nombre: 'Ficha de producto', descripcion: 'La ficha (PDP), productos por SKU, cambio de color y de variante, relacionados y «Completá tu look».', prefijos: ['/api/v2/items'] },
+    { nombre: 'Búsqueda', descripcion: 'El buscador: el panel antes de tipear, las sugerencias, la página de resultados y los eventos.', prefijos: ['/api/v2/search'] },
+    { nombre: 'Catálogo crudo y sitemap', descripcion: 'El listado crudo del catálogo con sus facetas y los datos para armar el sitemap.', prefijos: ['/api/storefront'] },
+  ],
+  // Por etapa, en el orden del checkout: identificación, envío, facturación, pago.
+  Checkout: [
+    { nombre: 'Estado e identificación', descripcion: 'El estado del checkout, la identificación del comprador invitado y su IP.', prefijos: ['/api/v2/checkout'] },
+    { nombre: 'Envío', descripcion: 'Los métodos de entrega disponibles y cómo guardar el envío elegido.', prefijos: ['/api/v2/checkout/shipping'] },
+    { nombre: 'Cotización y retiro', descripcion: 'Cotizar el envío por código postal y listar las sucursales y los locales para retirar.', prefijos: ['/api/v2/checkout/shipping/quote', '/api/v2/checkout/shipping/stores', '/api/v2/checkout/shipping/subsidiaries'] },
+    { nombre: 'Facturación y geografía', descripcion: 'Guardar la facturación, y las provincias, ciudades y códigos postales para los formularios de dirección.', prefijos: ['/api/v2/checkout/billing', '/api/v2/geo'] },
+    { nombre: 'Pago y confirmación', descripcion: 'Los medios de pago habilitados, pagar con cada uno y la confirmación de la orden.', prefijos: ['/api/v2/checkout/payment', '/api/v2/checkout/orders'] },
+  ],
+  Cuenta: [
+    { nombre: 'Sesión', descripcion: 'Ingresar (email y contraseña, código por mail o Google), crear la cuenta, renovar y cerrar la sesión.', prefijos: ['/api/v2/users'] },
+    { nombre: 'Pedidos', descripcion: 'Los pedidos del comprador logueado: el listado, el detalle y la cancelación.', prefijos: ['/api/v2/users/orders'] },
+    { nombre: 'Direcciones y perfil', descripcion: 'Las direcciones guardadas, el perfil y el cambio de contraseña.', prefijos: ['/api/v2/users/addresses', '/api/v2/users/profile', '/api/v2/users/password'] },
+  ],
+};
+
+const bajoPrefijo = (ruta, prefijo) => ruta === prefijo || ruta.startsWith(`${prefijo.replace(/\/$/, '')}/`);
+
+/** Las subpáginas de un grupo que no entra en una página: [{ nombre, descripcion, ops }], sin las vacías. */
+function partirGrupo(g) {
+  const subs = (SUBGRUPOS[g.nombre] ?? []).map((s) => ({ ...s, ops: [] }));
+  const porNombre = new Map(subs.map((s) => [s.nombre, s]));
+  const subgrupo = (nombre) => {
+    if (!porNombre.has(nombre)) {
+      const s = { nombre, descripcion: '', prefijos: [], ops: [] };
+      subs.push(s);
+      porNombre.set(nombre, s);
+    }
+    return porNombre.get(nombre);
+  };
+  for (const o of g.ops) {
+    let destino = o.op['x-subgrupo'] ? subgrupo(o.op['x-subgrupo']) : null;
+    let largo = -1;
+    for (const s of destino ? [] : subs) {
+      for (const p of s.prefijos) if (bajoPrefijo(o.ruta, p) && p.length > largo) [destino, largo] = [s, p.length];
+    }
+    if (!destino) {
+      // Sin subgrupo: por el primer segmento después de /api/v2 (o /api): `users` → «Users».
+      const segmento = o.ruta.replace(/^\/api(\/v\d+)?\//, '').split('/')[0].replace(/[_-]+/g, ' ');
+      destino = subgrupo(segmento.charAt(0).toUpperCase() + segmento.slice(1));
+    }
+    destino.ops.push(o);
+  }
+  return subs.filter((s) => s.ops.length);
+}
+
 // ───────────── Páginas ─────────────
 
 const paginas = [];
@@ -284,7 +354,9 @@ for (const parte of partes) {
   }
 }
 
-// Referencia de la API: portada + una página por grupo.
+// Referencia de la API: portada + una página por grupo. Un grupo que no entra en
+// una llamada de publish_page (más de MAX_REFERENCIA bytes de spec) se parte en
+// subpáginas y su página queda como índice (ver partirGrupo, más arriba).
 {
   const doc = yaml.load(leer(OPENAPI));
   const ref = crearReferencia(doc, { resolver: resolverDe(OPENAPI, P.referencia) });
@@ -298,7 +370,32 @@ for (const parte of partes) {
     ['tarjetas', ref.grupos.slice(0, 12).map((g) => ({ titulo: g.nombre, descripcion: g.descripcion.replace(/`/g, ''), link: url([...P.referencia, g.nombre]) }))],
   ];
   agregar(P.referencia, spec, OPENAPI);
-  for (const g of ref.grupos) agregar([...P.referencia, g.nombre], ref.pagina(g), OPENAPI);
+  for (const g of ref.grupos) {
+    const ruta = [...P.referencia, g.nombre];
+    const entera = ref.pagina(g);
+    if (pesa(entera) <= MAX_REFERENCIA) {
+      agregar(ruta, entera, OPENAPI);
+      continue;
+    }
+    // La página del grupo queda como índice (sin las operaciones): la descripción
+    // del tag, una tarjeta por subpágina y qué operación está en cuál.
+    const subs = partirGrupo(g);
+    const link = (s) => url([...ruta, s.nombre]);
+    agregar(
+      ruta,
+      [
+        ...(g.descripcion ? aSpec(g.descripcion, { resolver: resolverDe(OPENAPI, P.referencia) }) : []),
+        ['tarjetas', subs.map((s) => ({ titulo: s.nombre, descripcion: s.descripcion || s.ops.map((o) => o.op.summary).join(' · ').slice(0, 400), link: link(s) }))],
+        ['titulo', 'Operaciones', {}],
+        ['tabla', [['Operación', 'Qué hace', 'Página'], ...subs.flatMap((s) => s.ops.map((o) => [`\`${o.metodo.toUpperCase()} ${o.ruta}\``, (o.op.summary ?? '').replace(/\s+/g, ' ').trim(), `[${s.nombre}](${link(s)})`]))]],
+      ],
+      OPENAPI,
+    );
+    for (const s of subs) {
+      TITULOS.set(link(s), s.nombre);
+      agregar([...ruta, s.nombre], ref.pagina({ descripcion: s.descripcion, ops: s.ops }), OPENAPI);
+    }
+  }
 }
 
 // SDK: el README, el ejemplo de Next.js y create-store.
@@ -335,6 +432,7 @@ for (const p of paginas) {
   const donde = p.ruta.join(' › ');
   if (!p.spec.length) problemas.push(`${donde}: sin bloques`);
   if (p.spec.length > 400) problemas.push(`${donde}: ${p.spec.length} bloques (máximo 400)`);
+  if (p.ruta[0] === P.referencia[0] && pesa(p.spec) > MAX_REFERENCIA) problemas.push(`${donde}: pesa ${pesa(p.spec)} bytes (máximo ${MAX_REFERENCIA}): partila más en SUBGRUPOS`);
   for (const b of p.spec) {
     if (b[0] === 'api_operacion') {
       const datos = JSON.stringify(b[1]);
@@ -366,8 +464,8 @@ fs.mkdirSync(SALIDA, { recursive: true });
 const indice = paginas.map((p, i) => {
   const archivo = `${String(i + 1).padStart(2, '0')}-${p.ruta.map(slugify).join('--')}.json`;
   fs.writeFileSync(path.join(SALIDA, archivo), `${JSON.stringify({ workspace: p.workspace, ruta: p.ruta, tipo: TIPO, spec: p.spec }, null, 2)}\n`);
-  return { archivo, ruta: p.ruta, link: url(p.ruta), fuente: p.fuente, bloques: p.spec.length };
+  return { archivo, ruta: p.ruta, link: url(p.ruta), fuente: p.fuente, bloques: p.spec.length, bytes: pesa(p.spec) };
 });
 fs.writeFileSync(path.join(SALIDA, 'indice.json'), `${JSON.stringify({ workspace: WS, tipo: TIPO, paginas: indice }, null, 2)}\n`);
 console.log(`${paginas.length} páginas en ${path.relative(process.cwd(), SALIDA) || '.'}:`);
-for (const p of indice) console.log(`  ${p.archivo.padEnd(58)} ${String(p.bloques).padStart(3)} bloques  ${p.ruta.join(' › ')}`);
+for (const p of indice) console.log(`  ${p.archivo.padEnd(76)} ${String(p.bloques).padStart(3)} bloques ${String(Math.round(p.bytes / 1000)).padStart(4)} KB  ${p.ruta.join(' › ')}`);
