@@ -13,7 +13,7 @@ publicar.
 | `docs/cli.md` | Guías › La CLI |
 | `packages/cli/README.md` | Guías › Comandos de la CLI |
 | `docs/guia-agencias.md`, del quickstart de la API en adelante | Storefront API › una página por sección (Tokens, Catálogo, Carrito…) |
-| `packages/storefront/openapi.yaml` | Referencia de la API › una página por grupo (Config, Catálogo, Carrito…) |
+| `packages/storefront/openapi.yaml` | Referencia de la API › una página por grupo (Config, Catálogo, Carrito…); los grupos grandes, partidos en subpáginas |
 | `packages/storefront/README.md` | SDK |
 | `packages/storefront/examples/next-app-router` | SDK › Ejemplo: Next.js |
 | `packages/create-store/README.md` | SDK › create-store |
@@ -36,7 +36,7 @@ Opciones: `--salida <carpeta>` y `--workspace <slug>` (por defecto
 
 El script frena si una página no entra en los límites de `publish_page`
 (400 bloques, 4000 caracteres por párrafo, tablas de hasta 200 filas y 10
-columnas) o si la guía cambió de forma que ya no se puede partir (renombraron
+columnas, 60 KB por página de la referencia) o si la guía cambió de forma que ya no se puede partir (renombraron
 «Tu dominio», «Los mails de la marca», «Trabajar en equipo» o el
 «Quickstart (10 minutos)»): en ese caso hay que ajustar `generar.mjs`.
 
@@ -71,6 +71,19 @@ columnas) o si la guía cambió de forma que ya no se puede partir (renombraron
   desplegable (los `$ref` se resuelven acá, cortando los ciclos), y a la
   derecha los ejemplos por código armados desde el schema. Es estática: no
   tiene «try it» ni le pega a la API.
+- **Grupos grandes de la referencia:** `publish_page` recibe la página entera
+  en una sola llamada, y las de más de ~75 KB no entran. Si el spec de un grupo
+  pesa más de 60 KB (`MAX_REFERENCIA`, JSON minificado), sus operaciones se
+  parten en subpáginas (`Referencia de la API › Catálogo › Búsqueda`) y la
+  página del grupo queda como índice: la descripción del tag, una tarjeta por
+  subpágina y la tabla de qué operación está en cuál. Así conserva su link y su
+  id en Powbook. Cómo se parte cada grupo está en `SUBGRUPOS` de `generar.mjs`,
+  por prefijo de path (gana el más largo: `/api/v2/checkout/shipping/quote`
+  le gana a `/api/v2/checkout/shipping`). Una operación con `x-subgrupo` en la
+  OpenAPI va a ese subgrupo, y un grupo sin entrada en `SUBGRUPOS` se parte
+  solo, por el primer segmento del path después de `/api/v2`. Si una subpágina
+  igual pasa de 60 KB, el script frena: hay que partirla más en `SUBGRUPOS`.
+  Hoy se parten Catálogo, Checkout y Cuenta.
 
 ## Publicar
 
