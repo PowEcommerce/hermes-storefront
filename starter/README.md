@@ -78,7 +78,6 @@ Las escribe `hermes link` en `.env` (ver [`.env.example`](./.env.example)):
 | Variable | Para qué |
 |---|---|
 | `HERMES_TENANT` | la marca (`X-Client-ID`) |
-| `HERMES_API_URL` | la API (`https://api.pow.la/api`) |
 | `HERMES_PUBLIC_TOKEN` | `pst_…`: catálogo, carrito, cuenta, crear la checkout session |
 | `HERMES_PRIVATE_TOKEN` | `psk_…`, **sólo servidor**: leer el estado del pago en `/checkout/vuelta` |
 | `HERMES_REVALIDATE_SECRET` | `whsec_…` del webhook `storefront/revalidate` (purga de caché) |
@@ -237,8 +236,8 @@ imágenes que carga la marca en el backoffice pueden venir de hosts que no
 conocemos de antemano y el checkout hosteado vive en el dominio de cada
 marca. Ya permite Next (scripts y estilos inline; en `dev` además `eval` y el
 websocket del HMR), Mercado Pago (`*.mercadopago.com`, `*.mlstatic.com`), los
-CDN de imágenes (`*.powcdn.com`, `*.hermescdn.app`), la API (`api.pow.la` y
-la de `HERMES_API_URL`) y los videos de YouTube/Vimeo de los bloques.
+CDN de imágenes (`*.powcdn.com`, `*.hermescdn.app`), la API de Hermes
+y los videos de YouTube/Vimeo de los bloques.
 
 Para pasarla a obligatoria:
 

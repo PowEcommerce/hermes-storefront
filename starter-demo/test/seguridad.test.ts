@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_API_URL } from '@hermesecommerce/storefront';
 import { destinoSeguro } from '../lib/redirects';
 import { solapasDe } from '../lib/solapas';
 import { contentSecurityPolicy, securityHeaders } from '../lib/security-headers';
@@ -81,11 +82,18 @@ describe('securityHeaders', () => {
     expect(dir('script-src')).toContain('https://*.mercadopago.com');
     expect(dir('img-src')).toContain('https://*.powcdn.com');
     expect(dir('img-src')).toContain('https://*.hermescdn.app');
-    expect(dir('connect-src')).toContain('https://api.pow.la');
+    expect(dir('connect-src')).toContain(new URL(DEFAULT_API_URL).origin);
     expect(dir('connect-src')).toContain('https://api.agencia.com');
     expect(dir('frame-src')).toContain('https://www.youtube.com');
     expect(dir('frame-ancestors')).toBe("frame-ancestors 'self'");
     expect(dir('object-src')).toBe("object-src 'none'");
+  });
+  it('sin HERMES_API_URL (el default) la CSP permite la API de Hermes, la constante del SDK', () => {
+    const csp = contentSecurityPolicy({ NODE_ENV: 'production' });
+    const connect = csp.split('; ').find((d) => d.startsWith('connect-src ')) ?? '';
+    expect(connect).toBe(
+      `connect-src 'self' ${new URL(DEFAULT_API_URL).origin} https://*.mercadopago.com https://*.mercadopago.com.ar https://*.mercadolibre.com https://*.mlstatic.com`,
+    );
   });
   it('en dev suma unsafe-eval y el websocket del HMR; hosts extra por env', () => {
     const csp = contentSecurityPolicy({ NODE_ENV: 'development', HERMES_CSP_IMG_HOSTS: 'https://img.marca.com, https://cdn.x.com' });

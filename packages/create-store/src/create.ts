@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { carpetaLibre, copiarTemplate, existe } from './template';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.3.1';
 
 /** Templates: `demo` (diseño completo, lindo y vendible) y `skeleton` (mínimo, para arrancar de cero). */
 export const TEMPLATES = ['demo', 'skeleton'] as const;
@@ -21,13 +21,13 @@ export const CARPETA_EN_EL_REPO: Record<Template, string> = { demo: 'starter-dem
  * del repo. Un test verifica que coincidan con packages/{storefront,cli}/package.json.
  */
 export const VERSIONES_PUBLICADAS: Record<string, string> = {
-  '@hermesecommerce/storefront': '^0.1.0',
-  '@hermesecommerce/cli': '^0.3.0',
+  '@hermesecommerce/storefront': '^0.1.1',
+  '@hermesecommerce/cli': '^0.3.1',
 };
 
 /**
  * La CLI que corre `npx` cuando no está instalada en la tienda (`--no-install
- * --link`): la versión EXACTA que pide el template (`^0.3.0` → `0.3.0`),
+ * --link`): la versión EXACTA que pide el template (`^0.3.1` → `0.3.1`),
  * nunca un rango. Con `@^0`, npx reusa la copia que tenga en su caché si
  * cumple el rango, sin mirar npm (una CLI vieja). Se corre con
  * `--prefer-online` (ver `NPX_CLI_ARGS`).
@@ -282,7 +282,7 @@ export async function crear(argv: string[], ctx: Ctx): Promise<number> {
     }
     if (correrLink) {
       // La CLI del proyecto por su ruta; si el install no la dejó, la publicada
-      // por su nombre completo y versión exacta (@hermesecommerce/cli@0.3.0), nunca `hermes` a secas.
+      // por su nombre completo y versión exacta (@hermesecommerce/cli@0.3.1), nunca `hermes` a secas.
       const bin = binLocal(destino);
       const local =
         (await existe(join(destino, 'node_modules', '@hermesecommerce', 'cli', 'package.json'))) && (await existe(bin));

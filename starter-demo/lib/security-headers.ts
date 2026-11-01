@@ -12,6 +12,7 @@
 // `frame-ancestors 'self'`), salvo la vista previa del editor de inicio
 // (`/home/preview`, lib/preview.ts): ésa sí desde el admin de Hermes, y sólo
 // desde ahí. Ver `securityHeaders(env, { preview: true })`.
+import { DEFAULT_API_URL } from '@hermesecommerce/storefront';
 import { ORIGENES_DEL_EDITOR, RUTA_DE_PREVIEW } from './preview';
 
 export interface Header {
@@ -41,7 +42,7 @@ const lista = (v: string | undefined) =>
     .map((h) => h.trim())
     .filter(Boolean);
 
-/** El origen de una URL (https://api.pow.la/api → https://api.pow.la), o null. */
+/** El origen de una URL (https://api.ejemplo.test/api → https://api.ejemplo.test), o null. */
 function origen(url: string | undefined): string | null {
   if (!url) return null;
   try {
@@ -70,7 +71,8 @@ const unicos = (xs: Array<string | null>) => [...new Set(xs.filter((x): x is str
  */
 export function contentSecurityPolicy(env: Env = process.env, opts: OpcionesDeHeaders = {}): string {
   const dev = env.NODE_ENV === 'development';
-  const api = unicos(['https://api.pow.la', origen(env.HERMES_API_URL)]);
+  // La API de Hermes (el default del SDK) y, si se cambió, la de HERMES_API_URL.
+  const api = unicos([origen(DEFAULT_API_URL), origen(env.HERMES_API_URL)]);
   const directivas: Record<string, string[]> = {
     'default-src': ["'self'"],
     'base-uri': ["'self'"],
