@@ -39,7 +39,6 @@ Uso: hermes <comando> [opciones]
                         demo (default): la tienda completa de ejemplo;
                         skeleton: lo mínimo para arrancar tu diseño
   login                 Entrar con tu usuario del backoffice (abre el navegador)
-      --api <url>       API (default https://api.pow.la)
       --no-browser      No abrir el navegador, sólo mostrar el link
   logout                Cerrar la sesión (revoca el token de la CLI)
   whoami [--json]       Quién sos y a qué marcas tenés acceso
@@ -130,7 +129,7 @@ Uso: hermes <comando> [opciones]
                         Elegir el remitente (de un dominio tuyo verificado;
                         \`pow\` = la dirección de Pow) y a dónde van las respuestas
 
-Opciones comunes: --api <url>, --env-file <archivo> (default .env), --help
+Opciones comunes: --env-file <archivo> (default .env), --help
 `;
 
 type Comando = (ctx: Ctx, p: Parsed) => Promise<void>;

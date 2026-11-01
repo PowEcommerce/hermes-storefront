@@ -1,5 +1,14 @@
 # Changelog de @hermesecommerce/create-store
 
+## 0.3.1
+
+- Las tiendas nuevas piden `@hermesecommerce/cli@^0.3.1` (sin la URL de la
+  API en la salida ni en el `.env`) y `@hermesecommerce/storefront@^0.1.1`
+  (README y tipos sin la URL de la API).
+- Templates (demo y skeleton): `.env.example` sin `HERMES_API_URL` (opcional:
+  el SDK ya trae la API por defecto); la CSP toma la API de `DEFAULT_API_URL`
+  del SDK (misma CSP que antes); README sin la URL de la API.
+
 ## 0.3.0
 
 - Las tiendas nuevas piden `@hermesecommerce/cli@^0.3.0` (link sin preguntar

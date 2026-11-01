@@ -1,7 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Parsed, str } from '../args';
-import { Ctx, USER_AGENT } from '../context';
+import { Ctx, USER_AGENT, esApiDefault } from '../context';
 import { VARIABLES_HERMES, leerEnv, leerVariable } from '../env-file';
 import { CliError } from '../errors';
 import { Proyecto, leerProyecto } from '../project';
@@ -64,7 +64,8 @@ function puerto(flags: Parsed['flags']): number {
   return n;
 }
 
-const entornoDe = (apiUrl: string) => (/\/\/api\.pow\.la/.test(apiUrl) ? 'producción' : 'otra API');
+/** La API de Hermes, por su nombre; otra (desarrollo interno), con su URL. */
+const entornoDe = (apiUrl: string) => (esApiDefault(apiUrl) ? 'producción' : `otra API (${apiUrl})`);
 
 /**
  * Todo lo que `dev` y `preview` verifican antes de levantar nada: proyecto
@@ -148,7 +149,7 @@ async function banner(ctx: Ctx, p: Proyecto, hermes: Record<string, string>, url
     '',
     `  Local:    ${url}`,
     `  Marca:    ${hermes.HERMES_TENANT ?? p.tenant}`,
-    `  Entorno:  ${entornoDe(apiUrl)} (${apiUrl})`,
+    `  Entorno:  ${entornoDe(apiUrl)}`,
     '',
     `  Inicio:     ${url}/`,
     ...(cat ? [`  Categoría:  ${url}/categoria/${cat}`] : []),

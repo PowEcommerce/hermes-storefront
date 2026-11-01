@@ -11,7 +11,6 @@ export const pow = createStorefrontClient({
   tenant: process.env.HERMES_TENANT,
   publicToken: process.env.HERMES_PUBLIC_TOKEN!,
   privateToken: process.env.HERMES_PRIVATE_TOKEN,
-  apiUrl: process.env.HERMES_API_URL,
 });
 
 export const CART_COOKIE = 'pow_cart';

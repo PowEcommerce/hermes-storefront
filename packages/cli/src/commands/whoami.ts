@@ -1,15 +1,16 @@
 import { Parsed } from '../args';
-import { Ctx } from '../context';
+import { Ctx, esApiDefault, nombreDeApi } from '../context';
 import { conSesion } from './common';
 
 export async function whoami(ctx: Ctx, parsed: Parsed): Promise<void> {
   const { api, cliente } = await conSesion(ctx, parsed.flags);
   const me = await cliente.me();
   if (parsed.flags.json) {
-    ctx.out(JSON.stringify({ api, ...me }, null, 2));
+    // `api` sólo si es otra (desarrollo interno): la de Hermes no se muestra.
+    ctx.out(JSON.stringify({ ...(esApiDefault(api) ? {} : { api }), ...me }, null, 2));
     return;
   }
-  ctx.out(`${me.user.name} <${me.user.email}> en ${api}${me.is_staff ? ' (staff de POW)' : ''}`);
+  ctx.out(`${me.user.name} <${me.user.email}> en ${nombreDeApi(api)}${me.is_staff ? ' (staff de POW)' : ''}`);
   ctx.out(`Sesión de la CLI ${me.token.prefix}… vence ${me.token.expires_at.slice(0, 10)}`);
   const todas = me.token.all_tenants !== false;
   if (!me.tenants.length) {

@@ -1,6 +1,6 @@
 import { HermesApi } from '../api';
 import { Parsed, str } from '../args';
-import { Ctx } from '../context';
+import { Ctx, esApiDefault, nombreDeApi } from '../context';
 import { CredentialsStore, Sesion } from '../credentials';
 import { CliError } from '../errors';
 
@@ -16,7 +16,7 @@ export async function conSesion(
   const sesion = await s.sesion(api);
   if (!sesion)
     throw new CliError(
-      `No estás logueado en ${api}. Corré \`hermes login${api === 'https://api.pow.la' ? '' : ` --api ${api}`}\`.`,
+      `No estás logueado en ${nombreDeApi(api)}. Corré \`hermes login${esApiDefault(api) ? '' : ` --api ${api}`}\`.`,
     );
   return { api, sesion, cliente: new HermesApi(ctx, api, sesion.token) };
 }

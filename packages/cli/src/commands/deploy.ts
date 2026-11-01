@@ -344,7 +344,7 @@ async function clienteDeDeploy(
     const api = normalizarApi(explicita || p.api);
     if (!explicita && new URL(api).origin !== API_DEFAULT)
       throw new CliError(
-        `.hermes/project.json apunta a ${api}, no a ${API_DEFAULT}: con HERMES_DEPLOY_TOKEN no mando el token ahí. ` +
+        `.hermes/project.json apunta a ${api}, no a la API de Hermes: con HERMES_DEPLOY_TOKEN no mando el token ahí. ` +
           'Si esa API es la correcta, pasala explícita con `--api <url>` o `HERMES_API`.',
       );
     return { cliente: new HermesApi(ctx, api, token), conDeployToken: true };

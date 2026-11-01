@@ -923,7 +923,7 @@ describe('hermes deploy — en equipo', () => {
     );
     t.ctx.env = { ...t.ctx.env, HERMES_DEPLOY_TOKEN: HDT };
     expect(await main(['deploy'], t.ctx)).toBe(1);
-    expect(t.err.join('\n')).toMatch(/apunta a https:\/\/api\.evil\.example, no a https:\/\/api\.pow\.la.*--api <url>.*HERMES_API/s);
+    expect(t.err.join('\n')).toMatch(/apunta a https:\/\/api\.evil\.example, no a la API de Hermes.*--api <url>.*HERMES_API/s);
     expect(t.api.llamadas).toEqual([]);
     expect(t.procesos).toEqual([]);
   });

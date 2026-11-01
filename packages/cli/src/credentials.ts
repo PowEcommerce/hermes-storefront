@@ -18,7 +18,7 @@ interface Archivo {
 
 const ARCHIVO = 'credentials.json';
 
-/** "https://api.pow.la/api/" → "https://api.pow.la" (la CLI agrega /api). */
+/** "https://api.ejemplo.test/api/" → "https://api.ejemplo.test" (la CLI agrega /api). */
 export function normalizarApi(valor: string): string {
   let v = valor.trim().replace(/\/+$/, '');
   if (v.endsWith('/api')) v = v.slice(0, -4);

@@ -4818,8 +4818,10 @@ tags:
       Suscripciones a webhooks de la marca (self-service con el token privado `psk_`) y evento de
       prueba.
 servers:
-  - url: https://api.pow.la
-    description: Producción
+  - url: /
+    description: >-
+      La API de Hermes (relativa: el mismo host que sirve esta spec en /api/v2/openapi.json). Con el
+      SDK no hace falta: ya la trae por defecto.
 components:
   securitySchemes:
     storefront_token:

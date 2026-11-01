@@ -9,7 +9,7 @@ export const CREATE_STORE = '@hermesecommerce/create-store';
  * que pide la tienda nueva van con ella). Es el piso cuando no se puede
  * preguntar cuál es la última.
  */
-export const CREATE_STORE_MINIMA = '0.3.0';
+export const CREATE_STORE_MINIMA = '0.3.1';
 
 const majorDe = (v: string) => Number(/^(\d+)\./.exec(v)?.[1] ?? NaN);
 

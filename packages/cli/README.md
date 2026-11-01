@@ -45,7 +45,6 @@ Queda en tu `.env` (sin tocar el resto de tus variables):
 ```dotenv
 # Hermes (escrito por `hermes link`)
 HERMES_TENANT=tu-marca
-HERMES_API_URL=https://api.pow.la/api
 HERMES_PUBLIC_TOKEN=pst_…        # X-Storefront-Token (puede ir al navegador)
 HERMES_PRIVATE_TOKEN=psk_…       # X-Storefront-Private-Token (SÓLO server-side)
 HERMES_REVALIDATE_SECRET=whsec_… # si usaste --revalidate-url
@@ -78,7 +77,7 @@ y le pasa el comando a la del proyecto, como la CLI de Shopify. Con la misma
 versión corre la global. `HERMES_CLI_NO_DELEGAR=1` lo desactiva (y es lo que
 la global le pone a la local, para no rebotar).
 
-### `hermes login [--api <url>] [--no-browser]`
+### `hermes login [--no-browser]`
 
 Login con el **Device Authorization Grant** (RFC 8628): la CLI muestra un
 código (`BCDF-GHJK`) y abre el admin (`https://hermes.pow.la/admin/cli`).
@@ -96,9 +95,7 @@ autorizadas. Para sumar otra cuenta, `hermes login` de nuevo y marcala.
 - **Aprobá sólo si vos corriste `hermes login` recién**: si alguien te manda
   un link de `/admin/cli` que no pediste, es phishing.
 - Se guarda en `~/.config/hermes/credentials.json` (permisos 600; respeta
-  `XDG_CONFIG_HOME` y `HERMES_CONFIG_DIR`). Una sesión por API.
-- Otra API: `hermes login --api <url>` (o `HERMES_API=…`). La última API
-  usada queda como default.
+  `XDG_CONFIG_HOME` y `HERMES_CONFIG_DIR`).
 
 ### `hermes logout`
 
@@ -175,8 +172,7 @@ Ver [Trabajar en equipo](https://github.com/PowEcommerce/hermes-storefront/blob/
 ### `hermes env pull [--rotate] [--environment production|preview]`
 
 Deja el `.env` al día con el proyecto linkeado. Sin `--rotate` verifica que
-los tokens del `.env` sigan vigentes (y actualiza `HERMES_TENANT`/
-`HERMES_API_URL`); si falta o está revocado alguno, te dice que uses
+los tokens del `.env` sigan vigentes (y actualiza `HERMES_TENANT`); si falta o está revocado alguno, te dice que uses
 `--rotate`, que emite **tus** tokens de desarrollo nuevos (como un re-link).
 Además baja a tu `.env` las variables **no secretas** del proyecto
 (`hermes env set`, de producción o de `--environment preview`) para
@@ -408,7 +404,7 @@ vuelva a verificar. Pide ser admin de la marca.
 
 | Mensaje | Qué hacer |
 |---|---|
-| `No estás logueado en …` | `hermes login` (con el mismo `--api`) |
+| `No estás logueado en Hermes` | `hermes login` |
 | `Tu sesión de la CLI venció o se revocó` | `hermes login` |
 | `Tu rol en <marca> … no alcanza` | pedile a un admin de la marca el rol admin, o que linkee él |
 | `No tenés acceso a la marca` | `hermes whoami` para ver las tuyas |

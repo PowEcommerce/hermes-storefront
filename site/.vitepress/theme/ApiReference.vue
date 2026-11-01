@@ -36,7 +36,8 @@ onMounted(async () => {
       withBase('/api/openapi.yaml'),
       {
         scrollYOffset: alturaBarra,
-        hideHostname: false,
+        // Las operaciones se muestran por path (/api/v2/…), sin el host de la API.
+        hideHostname: true,
         expandResponses: '200,201',
         jsonSampleExpandLevel: 2,
         sortTagsAlphabetically: false,
@@ -72,7 +73,8 @@ onBeforeUnmount(() => {
       <a href="https://github.com/PowEcommerce/hermes-storefront/blob/main/packages/storefront/openapi.yaml"
         >packages/storefront/openapi.yaml</a
       >
-      (también en <code>GET https://api.pow.la/api/v2/openapi.json</code>). Para empezar, mirá la
+      (la API también la sirve en <code>GET /api/v2/openapi.json</code>). Con el SDK no hace falta
+      configurar la URL de la API: ya viene por defecto. Para empezar, mirá la
       <a :href="withBase('/guias/agencias')">guía para agencias</a>.
     </p>
     <p v-if="estado === 'cargando'" class="cargando">Cargando la referencia…</p>

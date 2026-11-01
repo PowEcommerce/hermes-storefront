@@ -50,10 +50,21 @@ igual usá uno sólo para esto). Con la variable, corre el job `starter-api`.
 
 ## Reglas
 
-- **Nada interno.** Este repo es público. Ni tokens, ni hosts que no sean
-  `api.pow.la`, ni nombres de marcas reales en ejemplos y tests: usá
-  `mimarca`, `tu-marca`, `tienda.agencia.com`, `ejemplo.test`.
+- **Nada interno.** Este repo es público. Ni tokens, ni hosts internos, ni
+  nombres de marcas reales en ejemplos y tests: usá `mimarca`, `tu-marca`,
+  `tienda.agencia.com`, `ejemplo.test`.
   `scripts/tarball-sin-internos.sh` lo chequea en el CI.
+- **La URL de la API no se muestra.** `https://api.pow.la` vive sólo como
+  constante interna (`DEFAULT_API_URL` en el SDK, `API_DEFAULT` en la CLI):
+  ningún mensaje de la CLI, ni la documentación para agencias (READMEs,
+  `docs/`, `site/`), ni lo que se genera (`.env`, `.hermes/project.json`,
+  `.env.example` de los templates) la nombra; se dice «Hermes» o «la API de
+  Hermes». Los tests y el CI sí pueden usarla.
+  `packages/cli/test/sin-url-de-la-api.test.ts` recorre la salida de los
+  comandos principales.
+- **Otra API (interno).** Para desarrollo interno, la CLI acepta `--api <url>`
+  o `HERMES_API=<url>` y el SDK/los templates `apiUrl` / `HERMES_API_URL`. No
+  se documentan para agencias.
 - **Secretos, nunca.** Los `.env*` están ignorados (salvo `.env.example`,
   sin valores). Si se te escapó uno: [`SECURITY.md`](SECURITY.md) (se rota,
   no alcanza con borrarlo).
@@ -84,9 +95,11 @@ npm run check:generated && npm run typecheck && npm test
 
 - En el PR, revisá el diff de la spec: si cambió algo que usa un método del
   SDK (`src/client.ts`), ajustalo y sumá tests.
-- La spec no puede listar servidores que no sean `https://api.pow.la` (el
-  chequeo de internos lo frena). Si la publicada trae otro en `servers:`,
-  sacalo del archivo antes de `npm run generate`.
+- `servers:` queda **relativo** (`- url: /`, «el mismo host que sirve la
+  spec»): la del repo no nombra el host de la API. Si la publicada trae
+  `servers:` con URLs, reemplazalos por el relativo antes de `npm run
+  generate` (no cambia lo generado). La referencia del sitio (Redoc) los
+  muestra sin host (`hideHostname`).
 - El CI falla si la spec y lo generado quedaron desfasados.
 
 (Más adelante, un workflow va a abrir ese PR solo cuando cambie la spec
