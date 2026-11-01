@@ -13,7 +13,7 @@ carrito, cuenta del comprador, checkout hosteado, reseñas y webhooks.
 - Tipos generados desde la OpenAPI 3.1 ([`openapi.yaml`](https://github.com/PowEcommerce/hermes-storefront/blob/main/packages/storefront/openapi.yaml))
   con `openapi-typescript`, más métodos agrupados y tipados a mano encima.
 - Referencia completa de la API: [guía para agencias](https://github.com/PowEcommerce/hermes-storefront/blob/main/docs/guia-agencias.md)
-  y `GET https://api.pow.la/api/v2/openapi.json`.
+  y la [OpenAPI](https://github.com/PowEcommerce/hermes-storefront/blob/main/packages/storefront/openapi.yaml).
 
 ## Instalación
 
@@ -35,7 +35,7 @@ const pow = createStorefrontClient({
   tenant: process.env.HERMES_TENANT,               // X-Client-ID (p. ej. 'tu-marca')
   publicToken: process.env.HERMES_PUBLIC_TOKEN!,   // pst_… → X-Storefront-Token
   privateToken: process.env.HERMES_PRIVATE_TOKEN,  // psk_… → X-Storefront-Private-Token (opcional)
-  apiUrl: process.env.HERMES_API_URL,              // con o sin /api; default https://api.pow.la
+  // La API de Hermes ya viene por defecto: no hace falta pasar `apiUrl`.
 });
 
 // 1. Config de la marca (cacheala unos minutos)
@@ -316,7 +316,6 @@ import { createStorefrontClient } from '@hermesecommerce/storefront/next';
 export const pow = createStorefrontClient({
   tenant: process.env.HERMES_TENANT,
   publicToken: process.env.HERMES_PUBLIC_TOKEN!,
-  apiUrl: process.env.HERMES_API_URL,
 });
 
 // app/api/hermes/revalidate/route.ts — verifica la firma y purga cada tag

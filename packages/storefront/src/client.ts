@@ -26,7 +26,12 @@ import type {
   paths,
 } from './types';
 
-export const DEFAULT_API_URL = 'https://api.pow.la';
+/**
+ * La API de Hermes: el default de `apiUrl`. No hace falta pasarla ni
+ * configurarla (tampoco `HERMES_API_URL`). Tipada `string` para que los
+ * `.d.ts` no muestren el valor.
+ */
+export const DEFAULT_API_URL: string = 'https://api.pow.la';
 
 export interface StorefrontClientOptions {
   /**
@@ -41,7 +46,7 @@ export interface StorefrontClientOptions {
    * cliente con este token en el navegador, tira error.
    */
   privateToken?: string;
-  /** Base de la API, con o sin `/api` (como la escribe `hermes link` en HERMES_API_URL). Default `https://api.pow.la`. */
+  /** Base de la API, con o sin `/api`. Default: la API de Hermes (`DEFAULT_API_URL`); no hace falta pasarla. */
   apiUrl?: string;
   /** `fetch` a usar (default: el global). Útil para tests, proxies o instrumentación. */
   fetch?: FetchLike;

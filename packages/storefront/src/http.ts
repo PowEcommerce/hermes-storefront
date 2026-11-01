@@ -145,7 +145,7 @@ export class Transport {
     const tieneCuerpo =
       req.body !== undefined && method !== 'GET' && method !== 'HEAD';
     if (tieneCuerpo) headers['Content-Type'] = 'application/json';
-    // Sin User-Agent el WAF de api.pow.la da 403 (y el fetch de un Worker de
+    // Sin User-Agent el WAF de la API da 403 (y el fetch de un Worker de
     // Cloudflare no manda ninguno). No pisamos el del llamador, en ninguna
     // capitalización. En el navegador no se toca: el browser manda el suyo y
     // un header de más podría romper el preflight de CORS.
