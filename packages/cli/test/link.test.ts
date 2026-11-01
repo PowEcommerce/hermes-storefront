@@ -159,7 +159,8 @@ describe('hermes link', () => {
     const env = await leer('.env');
     expect(env).toMatch(/^DATABASE_URL=postgres:\/\/x\n/);
     expect(env).toContain('HERMES_TENANT=otramarca\n');
-    expect(env).toContain('HERMES_API_URL=https://api.pow.la/api\n');
+    // La API de Hermes es el default del SDK: no va al .env (no se muestra).
+    expect(env).not.toContain('HERMES_API_URL');
     expect(env).toMatch(/HERMES_PUBLIC_TOKEN=pst_/);
     expect(env).toMatch(/HERMES_PRIVATE_TOKEN=psk_/);
     expect(env).not.toContain('HERMES_REVALIDATE_SECRET');
@@ -168,6 +169,7 @@ describe('hermes link', () => {
     expect(proyecto).toMatchObject({ tenant: 'otramarca', project_name: 'otramarca' });
     // project.json es del equipo (git): sin tokens ni ids personales.
     expect(proyecto).not.toHaveProperty('public_token_id');
+    expect(proyecto).not.toHaveProperty('api');
     expect(JSON.stringify(proyecto)).not.toMatch(/pst_|psk_/);
     expect(t.out.join('\n')).toContain('Son tus tokens de desarrollo (personales, con localhost)');
   });

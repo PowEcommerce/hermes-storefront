@@ -1,4 +1,4 @@
-import { Ctx } from './context';
+import { Ctx, esApiDefault, nombreDeApi } from './context';
 import { CliError } from './errors';
 
 export interface DeviceCode {
@@ -361,7 +361,8 @@ export class HermesApi {
       });
     } catch (e) {
       throw new CliError(
-        `No pude conectarme con ${this.base} (${(e as Error).message}). ¿Estás online? ¿La URL de --api es correcta?`,
+        `No pude conectarme con ${nombreDeApi(this.base)} (${(e as Error).message}). ¿Estás online?` +
+          (esApiDefault(this.base) ? '' : ' ¿La URL de --api es correcta?'),
       );
     }
     const texto = await res.text();

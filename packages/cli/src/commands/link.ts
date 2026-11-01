@@ -8,7 +8,7 @@ import {
   ProyectosDeMarca,
 } from '../api';
 import { Parsed, str } from '../args';
-import { Ctx } from '../context';
+import { Ctx, esApiDefault } from '../context';
 import {
   VARIABLES_HERMES,
   asegurarGitignore,
@@ -112,6 +112,9 @@ async function linkear(
   // (un secreto de revalidación viejo ya no sirve tras rotar el privado).
   const cambios: Record<string, string | undefined> = {};
   for (const k of VARIABLES_HERMES) cambios[k] = r.env[k];
+  // La API de Hermes es el default del SDK: no hace falta en el .env (y no
+  // se muestra). Sólo se escribe si es otra (desarrollo interno).
+  if (esApiDefault(cambios.HERMES_API_URL)) cambios.HERMES_API_URL = undefined;
   const archivo = archivoEnv(flags);
   const path = await escribirEnv(ctx.cwd, cambios, archivo);
   const agregado = archivo === '.env' ? await asegurarGitignore(ctx.cwd) : false;
@@ -367,7 +370,8 @@ export async function envPull(ctx: Ctx, { flags }: Parsed): Promise<void> {
     ctx.cwd,
     {
       HERMES_TENANT: p.tenant,
-      HERMES_API_URL: leerVariable(env, 'HERMES_API_URL') || `${api}/api`,
+      // La de Hermes es el default del SDK: no se agrega (si ya estaba, queda).
+      HERMES_API_URL: leerVariable(env, 'HERMES_API_URL') || (esApiDefault(api) ? undefined : `${api}/api`),
     },
     archivo,
   );

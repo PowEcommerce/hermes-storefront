@@ -1,5 +1,6 @@
 import { mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { API_DEFAULT, esApiDefault } from './context';
 
 /**
  * `.hermes/project.json`: a qué marca y proyecto está linkeada esta carpeta.
@@ -9,6 +10,7 @@ import { join } from 'node:path';
 export interface Proyecto {
   tenant: string;
   project_name: string;
+  /** La API; en el archivo sólo si no es la de Hermes (desarrollo interno). */
   api: string;
   /** De versiones anteriores (los ids de los tokens del link): ya no se usan. */
   public_token_id?: number;
@@ -21,9 +23,10 @@ const ARCHIVO = 'project.json';
 
 export async function leerProyecto(cwd: string): Promise<Proyecto | null> {
   try {
-    return JSON.parse(
+    const p = JSON.parse(
       await readFile(join(cwd, DIR, ARCHIVO), 'utf8'),
     ) as Proyecto;
+    return { ...p, api: p.api || API_DEFAULT };
   } catch {
     return null;
   }
@@ -31,7 +34,11 @@ export async function leerProyecto(cwd: string): Promise<Proyecto | null> {
 
 export async function guardarProyecto(cwd: string, p: Proyecto): Promise<void> {
   await mkdir(join(cwd, DIR), { recursive: true });
-  await writeFile(join(cwd, DIR, ARCHIVO), `${JSON.stringify(p, null, 2)}\n`);
+  // La API de Hermes no se escribe (es el default al leer): el archivo se
+  // commitea y no tiene por qué llevar la URL.
+  const { api, ...resto } = p;
+  const archivo = esApiDefault(api) ? resto : p;
+  await writeFile(join(cwd, DIR, ARCHIVO), `${JSON.stringify(archivo, null, 2)}\n`);
 }
 
 export async function borrarProyecto(cwd: string): Promise<void> {

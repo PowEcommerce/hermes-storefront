@@ -1,5 +1,16 @@
 # Changelog de @hermesecommerce/cli
 
+## 0.3.1
+
+- La CLI ya no muestra la URL de la API: `login`, `logout`, `whoami`, `dev`
+  y los errores dicen «Hermes» («entraste como … en Hermes», «No estás
+  logueado en Hermes», «Entorno: producción»). `whoami --json` ya no trae
+  `api` (salvo con otra API).
+- `hermes link` y `hermes env pull` ya no escriben `HERMES_API_URL` en el
+  `.env` (el SDK ya trae la API por defecto), y `.hermes/project.json` ya no
+  guarda `api`. Los proyectos linkeados antes siguen andando igual.
+- `--api` / `HERMES_API` siguen andando (uso interno), pero salen de la ayuda.
+
 ## 0.3.0
 
 - `hermes link` ya no pregunta «Nombre del proyecto»: si la marca no tiene

@@ -4,14 +4,37 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { comandoParaAbrir } from './browser';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.3.1';
 /**
  * User-Agent de los pedidos a la API que no pasan por ApiClient (que manda
- * `clientName`). El WAF de api.pow.la da 403 a los pedidos sin User-Agent; el
+ * `clientName`). El WAF de la API da 403 a los pedidos sin User-Agent; el
  * fetch de Node manda `node`, pero lo ponemos igual por consistencia.
  */
 export const USER_AGENT = `hermes-cli/${VERSION}`;
+/**
+ * La API de Hermes. Interna: ningún mensaje de la CLI la muestra (se nombra
+ * «Hermes», ver `nombreDeApi`). Para desarrollo interno se cambia con
+ * `--api <url>` o `HERMES_API`, que no se documentan para agencias.
+ */
 export const API_DEFAULT = 'https://api.pow.la';
+
+/** ¿Es la API de Hermes (con o sin `/api`, con o sin barra final)? */
+export function esApiDefault(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    return new URL(url).origin === API_DEFAULT;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Cómo se nombra una API en la salida: la de Hermes, por su nombre (nunca su
+ * URL); otra (`--api`/`HERMES_API`, sólo desarrollo interno), por su URL.
+ */
+export function nombreDeApi(api: string): string {
+  return esApiDefault(api) ? 'Hermes' : api;
+}
 
 /**
  * Todo lo que la CLI toca del mundo de afuera, inyectable para los tests:

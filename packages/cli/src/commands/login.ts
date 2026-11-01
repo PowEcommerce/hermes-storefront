@@ -1,7 +1,7 @@
 import { ApiError, HermesApi } from '../api';
 import { Parsed, str } from '../args';
-import { ADMIN_HOSTS, verificacionConfiable } from '../browser';
-import { Ctx } from '../context';
+import { verificacionConfiable } from '../browser';
+import { Ctx, nombreDeApi } from '../context';
 import { CliError } from '../errors';
 import { store } from './common';
 
@@ -30,7 +30,7 @@ export async function login(ctx: Ctx, { flags }: Parsed): Promise<void> {
     // Sólo se abre solo si es https y de la API o del admin de Hermes.
     const confiable = verificacionConfiable(code.verification_uri_complete, api);
     if (!confiable) {
-      ctx.out(`  (No abro el navegador: el link no es https de ${new URL(api).hostname} ni de ${ADMIN_HOSTS.join(', ')}.)`);
+      ctx.out('  (No abro el navegador: el link no es de Hermes. Abrilo vos sólo si confiás en él.)');
     } else {
       const ok = await ctx.openBrowser(confiable.href);
       if (!ok) ctx.out('  (No pude abrir el navegador: copiá el link.)');
@@ -57,7 +57,7 @@ export async function login(ctx: Ctx, { flags }: Parsed): Promise<void> {
         created_at: new Date().toISOString(),
       });
       ctx.out('');
-      ctx.out(`✔ Listo: entraste como ${t.user.email} en ${api}.`);
+      ctx.out(`✔ Listo: entraste como ${t.user.email} en ${nombreDeApi(api)}.`);
       if (t.all_tenants === false && t.tenants?.length)
         ctx.out(`  Cuentas autorizadas: ${t.tenants.join(', ')}.`);
       else if (t.all_tenants === true && t.tenants)
@@ -99,7 +99,7 @@ export async function logout(ctx: Ctx, { flags }: Parsed): Promise<void> {
   const borrada = await s.borrar(api);
   ctx.out(
     borrada
-      ? `✔ Saliste de ${api} (token de la CLI revocado).`
-      : `No había una sesión guardada para ${api}.`,
+      ? `✔ Saliste de ${nombreDeApi(api)} (token de la CLI revocado).`
+      : `No había una sesión guardada para ${nombreDeApi(api)}.`,
   );
 }
