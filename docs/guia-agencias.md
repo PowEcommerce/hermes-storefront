@@ -5,15 +5,17 @@ su propio front (Next.js, Hydrogen-style, Astro, una app móvil…) sobre nuestr
 API. Pow pone el catálogo, el carrito, la cuenta del comprador, el checkout y
 los pagos; vos ponés la experiencia.
 
-- **Referencia completa (OpenAPI 3.1):** `GET https://api.pow.la/api/v2/openapi.json`
-  (o `.yaml`). También está en este repo:
-  [`packages/storefront/openapi.yaml`](../packages/storefront/openapi.yaml). Abrila con lo que uses (Redocly, Scalar,
+- **Referencia completa (OpenAPI 3.1):** en este repo,
+  [`packages/storefront/openapi.yaml`](../packages/storefront/openapi.yaml) (la API también la sirve en
+  `GET /api/v2/openapi.json`). Abrila con lo que uses (Redocly, Scalar,
   Swagger UI, Postman, Insomnia) o generá un cliente tipado
-  (`npx openapi-typescript https://api.pow.la/api/v2/openapi.json -o pow.d.ts`).
+  (`npx openapi-typescript https://raw.githubusercontent.com/PowEcommerce/hermes-storefront/main/packages/storefront/openapi.yaml -o pow.d.ts`).
 - **SDK TypeScript:** [`@hermesecommerce/storefront`](../packages/storefront) — cliente tipado (Node 18+, Workers,
   Edge, navegador), errores normalizados, `verifyWebhook` y caché por tags
   con purga (`@hermesecommerce/storefront/next` para Next.js).
-- **Base URL:** `https://api.pow.la/api`.
+- **URL de la API:** con el SDK, el starter y la CLI no la configurás: ya la
+  traen. Si llamás a la API a mano (curl, otro lenguaje), te la pasamos junto
+  con el acceso; en los ejemplos de abajo es `https://<api-de-hermes>`.
 
 ---
 
@@ -373,7 +375,7 @@ Necesitás: el token público `pst_…` de la marca y, para el paso 5, el privad
 `psk_…` (ver [Tokens](#1-tokens)).
 
 ```bash
-export POW=https://api.pow.la/api
+export POW=https://<api-de-hermes>/api   # te la pasamos con el acceso
 export PST=pst_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   # público
 export PSK=psk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   # privado (SÓLO server-side)
 
@@ -410,7 +412,7 @@ curl -s "$POW/v2/checkout_sessions/cs_..." -H "X-Storefront-Private-Token: $PSK"
 El mismo flujo en TypeScript (server-side, p. ej. una route handler de Next.js):
 
 ```ts
-const POW = 'https://api.pow.la/api';
+const POW = 'https://<api-de-hermes>/api'; // te la pasamos con el acceso (con el SDK no hace falta)
 const PST = process.env.HERMES_PUBLIC_TOKEN!; // pst_…
 const PSK = process.env.HERMES_PRIVATE_TOKEN!; // psk_… (nunca al navegador)
 

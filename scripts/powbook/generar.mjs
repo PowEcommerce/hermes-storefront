@@ -362,10 +362,9 @@ for (const parte of partes) {
 {
   const doc = yaml.load(leer(OPENAPI));
   const ref = crearReferencia(doc, { resolver: resolverDe(OPENAPI, P.referencia) });
-  const servidor = doc.servers?.[0]?.url ?? 'https://api.pow.la';
   const spec = [
     ...aSpec(doc.info?.description ?? '', { resolver: resolverDe(OPENAPI, P.referencia) }),
-    ['callout', `La referencia sale de la OpenAPI 3.1 del repo: también la podés bajar de \`${servidor}/api/v2/openapi.json\` (o \`.yaml\`) y abrirla con Redocly, Scalar, Postman o Insomnia, o generar un cliente tipado.`, 'info'],
+    ['callout', `La referencia sale de la OpenAPI 3.1 del repo: la API también la sirve en \`GET /api/v2/openapi.json\` (o \`.yaml\`), y la podés abrir con Redocly, Scalar, Postman o Insomnia, o generar un cliente tipado.`, 'info'],
     ['titulo', 'Autenticación', {}],
     ['tabla', ref.tablaAutenticacion()],
     ['titulo', 'Grupos', {}],

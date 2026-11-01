@@ -59,8 +59,8 @@ const { items } = await pow.catalog.products({ page_number: 1 });
 - [La CLI: login, tokens y permisos](docs/cli.md).
 - [SDK](packages/storefront/README.md) · [CLI](packages/cli/README.md) ·
   [create-store](packages/create-store/README.md) · [demo](starter-demo/README.md) · [skeleton](starter/README.md).
-- Referencia de la API (OpenAPI 3.1): `https://api.pow.la/api/v2/openapi.json`
-  o [`packages/storefront/openapi.yaml`](packages/storefront/openapi.yaml).
+- Referencia de la API (OpenAPI 3.1):
+  [`packages/storefront/openapi.yaml`](packages/storefront/openapi.yaml).
 
 ## Contribuir y seguridad
 
