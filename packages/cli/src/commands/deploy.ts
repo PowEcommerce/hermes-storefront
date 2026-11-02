@@ -15,7 +15,7 @@ import { normalizarApi } from '../credentials';
 import { VARIABLES_HERMES, ignorarEnGit, leerEnv, leerVariable, todasLasVariables } from '../env-file';
 import { CliError } from '../errors';
 import { Proyecto, leerProyecto } from '../project';
-import { Pasos, bytes, cantidad, cola, duracion, guardarLog, modoDeSalida, sinAnsi, taparSecretos } from '../salida';
+import { Pasos, bytes, cantidad, cola, duracion, guardarLog, modoDeSalida, sinAnsi, taparSecretos, vencimiento } from '../salida';
 import { conCadena, cortarSiHayBucle, invocaHermes } from '../scripts';
 import { confirmar, conSesion } from './common';
 import { Pm, detectarPm, exec } from './dev';
@@ -651,6 +651,7 @@ async function deployar(ctx: Ctx, flags: Parsed['flags'], sal: Salida, inicio: n
           files: { total: nArchivos, uploaded: nuevos, worker_modules: worker.modulos.length, worker_bytes: bytesWorker },
           domains: dominios,
           previous_id: anterior?.id ?? null,
+          expires_at: r.deployment.expires_at ?? null,
           warnings: r.warnings,
         },
         null,
@@ -669,6 +670,8 @@ async function deployar(ctx: Ctx, flags: Parsed['flags'], sal: Salida, inicio: n
     detalle.push(`commit ${corto(git.commit)}${git.branch ? ` (${git.branch})` : ''}${git.dirty ? ' + cambios sin commitear' : ''}`);
   if (conDeployToken) detalle.push('con HERMES_DEPLOY_TOKEN');
   ctx.out(`   ${d(detalle.join(' · '))}`);
+  const vence = preview ? vencimiento(r.deployment.expires_at, ctx.now?.()) : null;
+  if (vence) ctx.out(`   ${c.amarillo(primeraMayuscula(vence))} ${d('si no hay otro deploy de esta branch antes')}`);
   if (dominios.length)
     ctx.out(
       `   Dominios: ${dominios.map((x) => (x.status === 'active' ? x.hostname : `${x.hostname} ${d(`(${x.status === 'error' ? 'con error' : 'pendiente'})`)}`)).join(', ')}`,
@@ -685,7 +688,10 @@ async function deployar(ctx: Ctx, flags: Parsed['flags'], sal: Salida, inicio: n
   for (const w of r.warnings) ctx.err(`${c.amarillo('⚠')} ${w}`);
 }
 
+const primeraMayuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 function tabla(ctx: Ctx, ds: Deployment[]) {
+  const ahora = ctx.now?.() ?? new Date();
   if (!ds.length) {
     ctx.out('Todavía no hay deploys de este proyecto: `hermes deploy`.');
     return;
@@ -699,7 +705,10 @@ function tabla(ctx: Ctx, ds: Deployment[]) {
     ctx.out(
       `${marca} #${d.id}  ${d.status.padEnd(10)} ${entorno.padEnd(24)} ${commit.padEnd(20)} ${fecha(d.activated_at ?? d.created_at)}  ${d.created_by}${d.rollback_of ? `  (versión de #${d.rollback_of})` : ''}`,
     );
-    ctx.out(`     ${d.url}`);
+    // Preview en el aire: cuándo la borra la limpieza (cuenta desde el último
+    // deploy de su branch).
+    const vence = d.environment === 'preview' && d.status === 'active' ? vencimiento(d.expires_at, ahora) : null;
+    ctx.out(`     ${d.url}${vence ? ` · ${vence}` : ''}`);
     if (d.status === 'failed' && d.error) ctx.out(`     ${d.error}`);
   }
 }

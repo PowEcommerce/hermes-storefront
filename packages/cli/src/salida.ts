@@ -88,6 +88,26 @@ export function duracion(ms: number): string {
 
 export const cantidad = (n: number) => ENTERO.format(n);
 
+/**
+ * Cuándo vence una preview, en la hora local: «vence el 02/12 (en 30 días)»,
+ * «vence el 03/11 (mañana)», «vence hoy (02/11)» o «venció el 01/11». Los
+ * días se cuentan por fecha de calendario (no por bloques de 24 h). `null`
+ * si no hay vencimiento (producción, preview borrada o limpieza apagada).
+ */
+export function vencimiento(expiresAt: string | null | undefined, ahora: Date = new Date()): string | null {
+  if (!expiresAt) return null;
+  const vence = new Date(expiresAt);
+  if (!Number.isFinite(vence.getTime())) return null;
+  const p = (n: number) => String(n).padStart(2, '0');
+  const ddmm = `${p(vence.getDate())}/${p(vence.getMonth() + 1)}`;
+  const dia = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000;
+  const dias = dia(vence) - dia(ahora);
+  if (vence.getTime() <= ahora.getTime()) return `venció el ${ddmm}`;
+  if (dias <= 0) return `vence hoy (${ddmm})`;
+  if (dias === 1) return `vence el ${ddmm} (mañana)`;
+  return `vence el ${ddmm} (en ${dias} días)`;
+}
+
 /** ¿CI / variable "verdadera"? (`CI=true`, `CI=1`; no `CI=false` ni `CI=0`). */
 export const activa = (v: string | undefined) => Boolean(v && !['0', 'false', 'no', ''].includes(v.trim().toLowerCase()));
 

@@ -1,5 +1,14 @@
 # Changelog de @hermesecommerce/cli
 
+## 0.3.2
+
+- `hermes deploy --preview` dice cuándo vence la preview: «Vence el 02/12
+  (en 30 días) si no hay otro deploy de esta branch antes». Con `--json`,
+  `expires_at` (ISO).
+- `hermes deployments` suma el vencimiento a la URL de cada preview en el
+  aire (`… · vence el 02/12 (en 30 días)`). Producción y las previews sin
+  limpieza automática no muestran nada.
+
 ## 0.3.1
 
 - La CLI ya no muestra la URL de la API: `login`, `logout`, `whoami`, `dev`

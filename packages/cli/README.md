@@ -342,7 +342,8 @@ tus secretos; se guardan los últimos 10.
 ### `hermes deployments [--json]` · `hermes deployments rm` · `hermes rollback <id> [--yes]`
 
 El historial de deploys del proyecto (● activo, ○ reemplazado, ✘ falló, con
-commit, branch y quién deployó) y la vuelta a la versión de un deploy
+commit, branch y quién deployó; en cada preview en el aire, cuándo vence:
+`vence el 02/12 (en 30 días)`) y la vuelta a la versión de un deploy
 anterior (se vuelve a subir ese bundle con los tokens vigentes de la tienda). Sin terminal interactiva, `rollback` pide `--yes`.
 `hermes deployments rm [--branch x] [--yes]` borra la preview de una branch
 (la de git por default): libera su URL y deja de contar para el tope de

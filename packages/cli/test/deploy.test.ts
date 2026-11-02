@@ -62,6 +62,8 @@ function apiDeHosting(
     sinPlan?: boolean;
     dominios?: any[][];
     activo?: Record<string, unknown>;
+    /** Lo que suma la API a lo que devuelve finalize (p. ej. `expires_at`). */
+    finalizado?: Record<string, unknown>;
     /** Lo que suma la API nueva a build-env (`hermes env`). */
     variables?: { vars: Record<string, string>; secret_names: string[] };
   } = {},
@@ -105,7 +107,7 @@ function apiDeHosting(
     }
     if (c.method === 'POST' && c.path === `${base}/deployments/5/assets`) return { body: { received: 1, complete: false } };
     if (c.method === 'POST' && c.path === `${base}/deployments/5/finalize`)
-      return { body: { deployment: { ...DEPLOY, status: 'active' }, url: DEPLOY.url, warnings: [] } };
+      return { body: { deployment: { ...DEPLOY, status: 'active', ...(opts.finalizado ?? {}) }, url: DEPLOY.url, warnings: [] } };
     if (c.method === 'GET' && c.path.startsWith(`${base}/deployments`))
       return {
         body: {
@@ -165,10 +167,17 @@ async function proyecto(
     dominios?: any[][];
     git?: string;
     activo?: Record<string, unknown>;
+    finalizado?: Record<string, unknown>;
     variables?: { vars: Record<string, string>; secret_names: string[] };
   } = {},
 ) {
-  const a = apiDeHosting({ sinPlan: opts.sinPlan, dominios: opts.dominios, activo: opts.activo, variables: opts.variables });
+  const a = apiDeHosting({
+    sinPlan: opts.sinPlan,
+    dominios: opts.dominios,
+    activo: opts.activo,
+    finalizado: opts.finalizado,
+    variables: opts.variables,
+  });
   const t = await ctxDePrueba(a.fetch, { interactive: opts.interactive, respuestas: opts.respuestas });
   await new CredentialsStore(t.configDir).guardar('https://api.pow.la', SESION);
   const w = (rel: string, txt: string) => mkdir(dirname(join(t.cwd, rel)), { recursive: true }).then(() => writeFile(join(t.cwd, rel), txt));
@@ -538,6 +547,26 @@ describe('hermes deploy — salida propia de Hermes', () => {
     expect(t.out[0]).toBe('Hermes · deploy de «tienda» (mimarca · preview de feat/home)');
     expect(texto).toContain('Logs: hermes logs --preview · Variables: hermes env list --environment preview');
     expect(texto).not.toContain('rollback');
+  });
+
+  it('preview: dice cuándo vence (el expires_at de la API) y lo suma al --json', async () => {
+    const vida = { environment: 'preview', branch: 'feat-home', expires_at: '2026-12-02T12:00:00Z' };
+    const t = await proyecto({ git: 'feat/home', finalizado: vida });
+    t.ctx.now = () => new Date('2026-11-02T12:00:00Z');
+    expect(await main(['deploy', '--preview'], t.ctx)).toBe(0);
+    expect(t.out.join('\n')).toContain('Vence el 02/12 (en 30 días) si no hay otro deploy de esta branch antes');
+
+    const j = await proyecto({ git: 'feat/home', finalizado: vida });
+    expect(await main(['deploy', '--preview', '--json'], j.ctx)).toBe(0);
+    expect(JSON.parse(j.out.join('\n')).expires_at).toBe('2026-12-02T12:00:00Z');
+  });
+
+  it('preview sin expires_at (API vieja o limpieza apagada) y producción: no dicen nada de vencer', async () => {
+    const t = await proyecto({ git: 'feat/home', finalizado: { environment: 'preview', branch: 'feat-home' } });
+    expect(await main(['deploy', '--preview'], t.ctx)).toBe(0);
+    const p = await proyecto();
+    expect(await main(['deploy'], p.ctx)).toBe(0);
+    expect([...t.out, ...p.out].join('\n')).not.toMatch(/[Vv]ence/);
   });
 
   it('--verbose (o HERMES_VERBOSE=1): los procesos van a la terminal, como antes, y sin --silent', async () => {
@@ -956,5 +985,16 @@ describe('hermes deploy — en equipo', () => {
     const texto = t.out.join('\n');
     expect(texto).toMatch(/● #6\s+active\s+prod\s+aaaaaaa \(feat\/vieja\)\*.*beto@agencia\.com/);
     expect(texto).toMatch(/○ #5\s+superseded\s+prod\s+—/);
+  });
+
+  it('deployments: la preview en el aire dice cuándo vence; producción y las reemplazadas no', async () => {
+    const t = await proyecto({
+      activo: { environment: 'preview', branch: 'feat-home', url: 'https://feat-home--tienda--mimarca.hermescdn.app', expires_at: '2026-11-03T12:00:00Z' },
+    });
+    t.ctx.now = () => new Date('2026-11-02T12:00:00Z');
+    expect(await main(['deployments'], t.ctx)).toBe(0);
+    const texto = t.out.join('\n');
+    expect(texto).toContain('https://feat-home--tienda--mimarca.hermescdn.app · vence el 03/11 (mañana)');
+    expect(texto.match(/vence/g)).toHaveLength(1);
   });
 });
