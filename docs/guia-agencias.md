@@ -119,7 +119,10 @@ hermes rollback 11                  # volver a la versión del deploy #11
 - **Previews**: una por branch, con URL propia; conviven con producción.
   El plan fija cuántas previews activas y proyectos podés tener (una tienda
   es un proyecto: ver [Trabajar en equipo](#trabajar-en-equipo));
-  `hermes deployments rm --branch <x>` borra una.
+  `hermes deployments rm --branch <x>` borra una. Una preview sin deploys
+  nuevos vence (se borra sola): `hermes deploy --preview` y
+  `hermes deployments` dicen cuándo («vence el 02/12 (en 30 días)»), y cada
+  deploy nuevo de la branch corre la fecha.
 - **Rollback**: vuelve a subir la versión guardada de ese deploy (con los
   tokens vigentes de la tienda). Se puede volver a cualquier deploy que haya
   estado en el aire.

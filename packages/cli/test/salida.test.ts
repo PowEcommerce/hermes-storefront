@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdtemp, readFile, readdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { bytes, cola, duracion, guardarLog, modoDeSalida, sinAnsi, taparSecretos } from '../src/salida';
+import { bytes, cola, duracion, guardarLog, modoDeSalida, sinAnsi, taparSecretos, vencimiento } from '../src/salida';
 import { Ctx } from '../src/context';
 
 describe('taparSecretos', () => {
@@ -109,5 +109,24 @@ describe('guardarLog', () => {
     // Mismo segundo: no se pisa.
     const otra = await guardarLog(cwd, 'deploy', 'otro', new Date(2026, 9, 29, 16, 55, 11));
     expect(otra).toBe(join('.hermes', 'logs', 'deploy-2026-10-29-165511-2.log'));
+  });
+});
+
+describe('vencimiento', () => {
+  // Mediodía UTC: el mismo día de calendario en casi cualquier huso horario.
+  const ahora = new Date('2026-11-02T12:00:00Z');
+
+  it('«vence el DD/MM (en N días)» contando días de calendario', () => {
+    expect(vencimiento('2026-12-02T12:00:00Z', ahora)).toBe('vence el 02/12 (en 30 días)');
+    expect(vencimiento('2026-11-04T12:00:00Z', ahora)).toBe('vence el 04/11 (en 2 días)');
+    expect(vencimiento('2026-11-03T12:00:00Z', ahora)).toBe('vence el 03/11 (mañana)');
+    expect(vencimiento('2026-11-02T13:00:00Z', ahora)).toBe('vence hoy (02/11)');
+  });
+
+  it('ya vencida, sin fecha o con una fecha inválida', () => {
+    expect(vencimiento('2026-11-01T12:00:00Z', ahora)).toBe('venció el 01/11');
+    expect(vencimiento(null, ahora)).toBeNull();
+    expect(vencimiento(undefined, ahora)).toBeNull();
+    expect(vencimiento('cualquiera', ahora)).toBeNull();
   });
 });

@@ -196,6 +196,13 @@ export interface Deployment {
   created_by: string;
   created_at: string;
   activated_at: string | null;
+  /**
+   * Preview: su último deploy y cuándo la borra la limpieza si no hay otro
+   * deploy antes (null en producción, en una borrada o sin limpieza). API
+   * vieja: no vienen.
+   */
+  last_deployed_at?: string | null;
+  expires_at?: string | null;
 }
 
 export interface ResultadoDeDeploy {
