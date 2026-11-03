@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
-    "redoc": "^2.5.4",
+    "redoc": "^3.0.1",
     "vitepress": "^1.6.4"
   }
 }
