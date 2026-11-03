@@ -564,7 +564,7 @@ Otros endpoints útiles para armar el layout: `GET /api/v2/categories/header`
 | Ficha de producto (PDP) | `GET /api/v2/items/{slug}` |
 | Cambiar color / variante en la ficha | `GET /api/v2/items/{id}/change_variant`, `…/update_variant` |
 | Relacionados / "completá el look" | `GET /api/v2/items/{id}/related`, `…/look` |
-| Buscador (autocompletar y resultados) | `GET /api/v2/search/suggest?q=`, `GET /api/v2/search?q=` |
+| Buscador inteligente (con la app; ver [10](#10-buscador-inteligente)) | `GET /api/v2/search/suggest?q=`, `GET /api/v2/search?q=`, `GET /api/v2/search/config` |
 | Sitemap | `GET /api/storefront/sitemap` |
 
 Los listados paginan con `page_number` (el tamaño de página lo define la
@@ -957,7 +957,140 @@ Con la app apagada, estos endpoints contestan 404.
 
 ---
 
-## 10. Errores
+## 10. Buscador inteligente
+
+El buscador inteligente es una app del App Store de Hermes
+(`buscador-inteligente`): sinónimos, corrección de tipeos («remra» →
+remera), prefijos («rem» ya trae remeras), reglas de merchandising del
+backoffice (fijar, enterrar u ocultar productos, banners y redirecciones
+por término), panel con «Lo más buscado» y categorías destacadas, y un
+reporte de búsquedas en el admin. Es el mismo que usan las tiendas de las
+marcas de Hermes.
+
+### Instalarlo
+
+La app la instala y la prende la marca (o Pow, a pedido) desde el App Store
+del admin. No hay nada que configurar del lado de tu tienda: el storefront
+pregunta si está prendida.
+
+```bash
+curl https://<api-de-hermes>/api/v2/storefront/apps -H "X-Storefront-Token: pst_…"
+# → { "apps": { "buscador-inteligente": { "installed": true, "enabled": true }, … } }
+```
+
+Sólo cuenta como prendida si está **instalada y prendida** (`installed` y
+`enabled` en `true`); si no aparece, no está instalada. Prenderla o apagarla
+purga el tag `settings`: con la caché por tags (ver
+[8. Cache y purga](#8-cache-y-purga)) se ve al toque, sin deploy.
+
+### Qué cambia en tu tienda
+
+| | App prendida | App apagada o sin instalar (fallback) |
+|---|---|---|
+| Página de resultados | `GET /api/v2/search?q=` | `GET /api/v2/products?q=` (la búsqueda del listado) |
+| Panel mientras se tipea | `GET /api/v2/search/suggest?q=` + `GET /api/v2/search/config` | el campo de siempre |
+| Medición | `POST /api/v2/search/events` | — |
+
+Ante cualquier duda (error de red, respuesta rara), tratala como **apagada**:
+la tienda tiene que andar igual sin ella.
+
+Con el SDK:
+
+```ts
+// Server (Server Components, Route Handlers)
+if (await pow.catalog.searchEnabled()) {            // nunca tira: ante un error, false
+  const r = await pow.catalog.search(q, { page_number: 1 });
+  if (r.redirect) redirect(r.redirect);              // regla de redirección del backoffice
+  // r.items, r.total, r.corrected_query, r.facets, r.attribution_token…
+} else {
+  const r = await pow.catalog.products({ q, page_number: 1 });
+}
+const panel = await pow.catalog.searchConfig();     // min_chars, most_searched, featured_categories
+const sugerencias = await pow.catalog.suggest('rem', { limit: 6 });
+```
+
+`searchEnabled` usa `config.apps()` (tag `settings`, TTL largo);
+`config.appEnabled(slug)` hace lo mismo para cualquier app.
+
+### El contrato, en corto
+
+- **`GET /api/v2/search?q=`**: `items` (forma de la PLP, con `pg_id`), `total`,
+  `facets` (calculadas sobre lo buscado), `corrected_query` («Mostrando
+  resultados para…»), `redirect` (si viene, navegá ahí: no hay resultados),
+  `banner`, `pinned_ids`, `sort_options` (usá `sort=<key>`) y
+  `attribution_token`. Acepta todos los filtros del listado.
+- **`GET /api/v2/search/suggest?q=&limit=`**: `terms`, `categories`, `brands`,
+  `attrs` (cada uno con `highlight: [desde, hasta)` de lo tipeado, para
+  resaltarlo), hasta 5 `products` (los mismos que la página de resultados, en
+  el mismo orden), `total`, `redirect` y `attribution_token`. Pensado para
+  pedirse por tecla (meta: menos de 100 ms).
+- **`GET /api/v2/search/config`**: el panel antes de tipear: `min_chars`
+  (desde cuántas letras sugerir), `most_searched` («Lo más buscado»),
+  `featured_categories` (con su `url`) y `recommended`. Tags
+  `search-config`, `search-featured` y `settings`: se purga cuando la marca
+  cambia la configuración.
+
+### Eventos: por qué importan
+
+Sin eventos **el reporte de búsquedas del admin queda vacío y «Lo más
+buscado» no se llena con búsquedas reales** (queda la lista curada a mano).
+Tampoco hay datos para saber qué términos dan cero resultados, que es lo que
+dice qué sinónimo o redirección cargar. Son cuatro:
+
+| `type` | Cuándo |
+|---|---|
+| `search` | Se muestra una búsqueda: la página (`origin: 'page'`) o el panel con productos (`origin: 'panel'`) |
+| `detail-page-view` | Clic en un resultado |
+| `add-to-cart` | Se agrega al carrito un producto que vino de una búsqueda |
+| `purchase-complete` | Se compra un producto que vino de una búsqueda |
+
+El `attribution_token` de la respuesta de `/search` o `/suggest` es lo que ata
+el clic, el carrito y la compra a la búsqueda que los originó (vale 30 días).
+
+**El navegador no llama a la API para esto:** manda los eventos a una ruta de
+tu tienda, que los reenvía con la IP real del comprador en
+`X-Forwarded-For`. El límite de `POST /v2/search/events` es de 300 pedidos
+por minuto **por IP**: sin la IP del comprador, todos tus compradores
+comparten el cupo de tu servidor. Con el SDK son dos piezas:
+
+```ts
+// app/api/hermes/search-events/route.ts (server)
+import { createSearchEventsRoute } from '@hermesecommerce/storefront/next';
+import { hermes } from '@/lib/hermes';
+export const POST = createSearchEventsRoute({ client: hermes }); // siempre 202
+
+// en tus componentes (navegador)
+import {
+  trackSearch, trackSearchClick, trackSearchAddToCart, trackSearchPurchase,
+} from '@hermesecommerce/storefront/search';
+
+trackSearch({ term, origin: 'page', results_count: r.total, attribution_token: r.attribution_token,
+  shown_products: r.items.map((p, i) => ({ pg_id: p.pg_id!, position: i + 1 })) });
+trackSearchClick({ key: slug, pg_id, position, attribution_token, origin: 'page', term });
+trackSearchAddToCart({ key: slug, variant_id, quantity, revenue_cents });  // sólo mide si vino de una búsqueda
+trackSearchPurchase({ order_id });  // en la página de gracias, con la orden ya confirmada server-side
+```
+
+Los `track*` completan `visitor_id`, `session_id` y `device`, guardan la
+atribución en el navegador (localStorage, 30 días) y mandan con `sendBeacon`
+(o `fetch` con `keepalive`): sobreviven a que la persona cambie de página.
+**Nunca tiran**, igual que la ruta: la medición no puede romper la página.
+Sin el SDK, el cuerpo es `{ "events": [ … ] }` (hasta 50 por pedido) y la
+respuesta, `202 { "guardados": n, "descartados": m }`.
+
+### En el starter
+
+Los dos templates de `npm create @hermesecommerce/store` ya lo traen: con la
+app prendida el header muestra el panel (lo más buscado y destacadas; al
+tipear, términos resaltados, categorías y hasta 5 productos; Enter respeta
+las redirecciones), `/buscar` usa el buscador nuevo y se miden los cuatro
+eventos (`app/api/hermes/search-events`, `app/api/buscador/sugerencias`). Con
+la app apagada, `/buscar` busca con el listado y el header queda como
+siempre.
+
+---
+
+## 11. Errores
 
 Siempre JSON, con uno de estos dos formatos:
 
@@ -986,7 +1119,7 @@ los pasos del **checkout propio** y los **pagos** como
 `{ "ok": false, "error": "…", "errors": [...], "next": "…" }`. Cada endpoint
 lo tiene documentado en la spec.
 
-## 11. Rate limits
+## 12. Rate limits
 
 Las lecturas de catálogo y contenido no tienen límite por cliente, pero
 cacheálas: es lo que hace rápido a tu storefront. Hay límites por IP en lo
@@ -1011,7 +1144,7 @@ Si llamás desde tu servidor, todo tu tráfico sale de pocas IPs: para login y
 registro reenviá la IP real del comprador en `X-Forwarded-For` desde un proxy
 de confianza, o hablá con Pow.
 
-## 12. Versionado
+## 13. Versionado
 
 - `v2` es **estable**: sólo cambios aditivos (campos nuevos en las respuestas,
   endpoints nuevos, valores nuevos en enums documentados como abiertos).
@@ -1021,7 +1154,7 @@ de confianza, o hablá con Pow.
   migrar.
 - La spec (`/api/v2/openapi.json`) siempre refleja lo que está en producción.
 
-## 13. Checklist antes de salir a producción
+## 14. Checklist antes de salir a producción
 
 - [ ] El token privado está sólo en variables de entorno del servidor (con
       `hermes deploy` ya va como secreto del worker).
@@ -1039,3 +1172,6 @@ de confianza, o hablá con Pow.
       con TTL de red de seguridad, y suscriptos a `storefront/revalidate`;
       carrito, cuenta y checkout no se cachean.
 - [ ] Manejás 401 (token revocado / sesión vencida), 422 y 429.
+- [ ] Si la marca tiene el buscador inteligente: mandás los cuatro eventos
+      por una ruta de tu servidor con la IP del comprador, y con la app
+      apagada `/buscar` sigue andando (búsqueda del listado).
