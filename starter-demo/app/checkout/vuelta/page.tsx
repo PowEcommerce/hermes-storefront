@@ -6,6 +6,7 @@ import type { CheckoutSession } from '@hermesecommerce/storefront';
 import { hermes, tienePrivado } from '@/lib/hermes';
 import { esNoEncontrado, mensajeDeError } from '@/lib/errors';
 import { VaciarCarrito } from './VaciarCarrito';
+import { MedirCompra } from './MedirCompra';
 
 export const metadata: Metadata = { title: 'Tu compra', robots: { index: false } };
 
@@ -55,6 +56,9 @@ export default async function VueltaDelCheckout({ searchParams }: PageProps<'/ch
     <Mensaje titulo={titulo} texto={texto} estado={r}>
       {sesion.order_id && <p className="text-sm text-muted-fg">Pedido #{sesion.order_id}</p>}
       {sesion.status === 'completed' && <VaciarCarrito />}
+      {sesion.status === 'completed' && sesion.order_id && (r === 'exito' || r === 'pendiente') && (
+        <MedirCompra orderId={sesion.order_id} />
+      )}
       <div className="mt-6 flex justify-center gap-3">
         {r === 'exito' || r === 'pendiente' ? (
           <>

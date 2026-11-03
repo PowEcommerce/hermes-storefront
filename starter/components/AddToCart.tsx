@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useTransition, type ReactNode } from 'react';
+import { trackSearchAddToCart } from '@hermesecommerce/storefront/search';
 import { agregarAlCarrito, type ResultadoCarrito } from '@/app/carrito/actions';
 import type { PrecioVisible } from '@/lib/precios';
 import { CART_EVENT } from './CartBadge';
@@ -13,6 +14,8 @@ export interface Talle {
   stock: number;
   /** El precio de ESTE talle (en oferta puede serlo sólo uno). Ya formateado en el server. */
   precio: PrecioVisible | null;
+  /** Precio de ESTE talle en centavos (para medir la compra si vino del buscador). */
+  centavos?: number | null;
 }
 
 /**
@@ -21,11 +24,14 @@ export interface Talle {
  * server) va entre el precio y los talles.
  */
 export function AddToCart({
+  slug,
   talles,
   sinStock,
   precioSinTalle,
   children,
 }: {
+  /** El slug del producto: si se llegó desde el buscador inteligente, el agregado se le atribuye. */
+  slug?: string;
   talles: Talle[];
   sinStock: boolean;
   /** Antes de elegir talle: el precio común, o "desde" si los talles difieren. */
@@ -49,7 +55,17 @@ export function AddToCart({
     start(async () => {
       const r = await agregarAlCarrito(elegido, cantidad);
       setResultado(r);
-      if (r.ok) window.dispatchEvent(new Event(CART_EVENT));
+      if (r.ok) {
+        window.dispatchEvent(new Event(CART_EVENT));
+        // Sólo mide si el producto se abrió desde el buscador inteligente (si no, no hace nada).
+        if (slug)
+          trackSearchAddToCart({
+            key: slug,
+            variant_id: elegido,
+            quantity: cantidad,
+            revenue_cents: talle?.centavos != null ? talle.centavos * cantidad : null,
+          });
+      }
     });
   };
 

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Menu, Search, ShoppingBag, User } from 'lucide-react';
 import { CartBadge } from '@/components/CartBadge';
+import type { PanelVacio } from '@/lib/buscador';
 import { MegaMenu } from './MegaMenu';
 import { MobileNav } from './MobileNav';
 import { SearchPanel } from './SearchPanel';
@@ -36,10 +37,13 @@ export function HeaderBar({
   marca,
   categorias,
   tono,
+  buscador = null,
 }: {
   marca: MarcaDelHeader;
   categorias: CategoriaDelMenu[];
   tono: 'light' | 'dark';
+  /** El panel del buscador inteligente (null = la app no está prendida). */
+  buscador?: PanelVacio | null;
 }) {
   const pathname = usePathname();
   const [pasoElHero, setPasoElHero] = useState(false);
@@ -142,7 +146,12 @@ export function HeaderBar({
       <div className={styles.espaciador} aria-hidden="true" />
 
       <MobileNav abierto={mobileAbierto} marca={marca} categorias={categorias} onClose={() => setMobileAbierto(false)} />
-      <SearchPanel abierto={buscadorAbierto} categorias={categorias} onClose={() => setBuscadorAbierto(false)} />
+      <SearchPanel
+        abierto={buscadorAbierto}
+        categorias={categorias}
+        buscador={buscador}
+        onClose={() => setBuscadorAbierto(false)}
+      />
     </>
   );
 }

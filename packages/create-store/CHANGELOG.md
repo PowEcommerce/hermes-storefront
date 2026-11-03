@@ -1,5 +1,21 @@
 # Changelog de @hermesecommerce/create-store
 
+## 0.4.0
+
+- Las tiendas nuevas piden `@hermesecommerce/storefront@^0.2.0` (buscador
+  inteligente) y `@hermesecommerce/cli@^0.3.2` (la preview dice cuándo vence;
+  además alinea el test de versiones, que fallaba en main desde cli 0.3.2).
+- Templates (demo y skeleton): **buscador inteligente** (app
+  `buscador-inteligente` del App Store de Hermes).
+  - Con la app prendida: panel con autocompletar en el header (lo más buscado
+    y categorías destacadas antes de tipear; términos con lo tipeado
+    resaltado, categorías y hasta 5 productos mientras se tipea; respeta las
+    redirecciones del backoffice), `/buscar` con el buscador nuevo y la
+    medición de búsquedas, clics, agregados al carrito y compras
+    (`app/api/hermes/search-events`, `app/api/buscador/sugerencias`).
+  - Sin la app (o apagada): `/buscar` busca con el listado
+    (`catalog.products({ q })`) y el header queda como antes.
+
 ## 0.3.1
 
 - Las tiendas nuevas piden `@hermesecommerce/cli@^0.3.1` (sin la URL de la

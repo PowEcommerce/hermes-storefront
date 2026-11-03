@@ -104,13 +104,15 @@ Las escribe `hermes link` en `.env` (ver [`.env.example`](./.env.example)):
 | `/pages/[slug]` | Landings del backoffice (`content.landing(slug)`), la misma URL que usan las marcas | prerender de las publicadas + ISR (tags `landings`, `landing-<slug>`) |
 | `/categoria/[slug]` | PLP con filtros de `catalog.filters` (color, talle, propiedades), orden y paginación en la URL | dinámico, datos cacheados por tags |
 | `/producto/[slug]` | PDP: fotos, precio, color (`?color=`), talle con stock, cantidad, agregar al carrito, solapas; reseñas si la app está prendida (`settings/integrations`) | dinámico, datos cacheados por tags |
-| `/buscar?q=` | Búsqueda (`catalog.search`), respeta las redirecciones del backoffice | dinámico |
+| `/buscar?q=` | Búsqueda. Con la app **buscador inteligente** prendida: `catalog.search` (sinónimos, corrección, reglas y redirecciones del backoffice) y medición de búsquedas, clics, carrito y compras; sin la app, la búsqueda del listado (`catalog.products({ q })`) | dinámico |
 | `/carrito` | Líneas con +/−/quitar, cupón, totales, envío gratis, **Finalizar compra** | sin caché |
 | `/checkout/vuelta` | Estado real del pago con el `psk_` (éxito / pendiente / fallido) | sin caché |
 | `/cuenta`, `/cuenta/ingresar`, `/cuenta/registro` | Login, registro, logout y mis pedidos | sin caché |
 | `/api/hermes/revalidate` | Webhook `storefront/revalidate` (`createRevalidateRoute`) | — |
 | `/api/cuenta/refresh` | Renueva la sesión del comprador (refresh rotativo) | — |
 | `/api/carrito/resumen` | Cantidad para el badge del header | — |
+| `/api/buscador/sugerencias` | Sugerencias del panel del buscador inteligente (404 sin la app) | — |
+| `/api/hermes/search-events` | Medición del buscador inteligente: reenvía los eventos a Hermes con la IP del comprador (`createSearchEventsRoute`) | — |
 
 ### Page blocks (home y landings)
 
@@ -182,6 +184,16 @@ Si renombrás o movés la home, mantené esta ruta: es la URL que usa el admin.
   `@hermesecommerce/storefront/next` (cada GET sale con `next: { tags, revalidate }`
   de la spec) y marcado con `import 'server-only'`: el `psk_` no puede llegar
   al navegador (el build falla si un client component lo importa).
+- **Buscador inteligente** (app `buscador-inteligente` del App Store de Hermes).
+  El header pregunta `hermes.catalog.searchEnabled()` (nunca tira; tag
+  `settings`, así prender o apagar la app se ve al toque). Prendida: panel con
+  autocompletar ([`lib/buscador.ts`](./lib/buscador.ts),
+  [`lib/buscador-cliente.ts`](./lib/buscador-cliente.ts)), `/buscar` con
+  `catalog.search` y los cuatro eventos de medición (`trackSearch*` de
+  `@hermesecommerce/storefront/search`: búsqueda, clic, agregado al carrito en
+  `AddToCart` y compra en `/checkout/vuelta`). Apagada: `/buscar` con la
+  búsqueda del listado y el header de siempre. Sin los eventos, el reporte
+  de búsquedas del admin queda vacío.
 - **Caché e ISR.** Los datos del catálogo se cachean con los tags de Hermes
   (`product-<slug>`, `category-<slug>`, `products`, `settings`…) y el TTL de
   la spec como red de seguridad (60 s / 1 h). Cuando algo cambia en el
