@@ -58,6 +58,35 @@ export type {
   CacheTtl,
 } from './cache';
 export { handleRevalidateWebhook } from './revalidate';
+export {
+  SEARCH_APP_SLUG,
+  SEARCH_EVENTS_ROUTE,
+  MAX_SEARCH_EVENTS_PER_BATCH,
+  isAppEnabled,
+  searchEventsBatch,
+  clientIpFrom,
+  deviceFromWidth,
+  sendSearchEvents,
+  trackSearch,
+  trackSearchClick,
+  trackSearchAddToCart,
+  trackSearchPurchase,
+  getSearchAttribution,
+  createSearchEventsRoute,
+} from './search';
+export type {
+  SearchEvent,
+  SearchEventType,
+  SearchEventsResult,
+  SearchConfig,
+  SearchSuggestion,
+  SearchOrigin,
+  SearchDevice,
+  SearchTrackingOptions,
+  SearchAttribution,
+  ShownProduct,
+  CreateSearchEventsRouteOptions,
+} from './search';
 export { SDK_VERSION, DEFAULT_USER_AGENT } from './version';
 export type {
   HandleRevalidateWebhookInput,

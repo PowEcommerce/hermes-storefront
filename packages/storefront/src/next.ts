@@ -134,3 +134,7 @@ export function createRevalidateRoute(opciones: CreateRevalidateRouteOptions) {
 
 export type { RevalidateTag, StorefrontRevalidateEvent };
 export { handleRevalidateWebhook };
+export {
+  createSearchEventsRoute,
+  type CreateSearchEventsRouteOptions,
+} from './search';

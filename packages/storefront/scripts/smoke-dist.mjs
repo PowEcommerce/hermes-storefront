@@ -59,3 +59,19 @@ for (const f of ['../dist/next.js', '../dist/next.cjs']) {
   assert.match(codigo, /["']next\/cache["']/, `${f}: next/cache externo`);
 }
 console.log('next: next/cache queda externo');
+
+// El subpath /search (buscador inteligente) es liviano y anda en ESM y CJS.
+const busquedaEsm = await import('../dist/search.js');
+const busquedaCjs = require('../dist/search.cjs');
+for (const b of [busquedaEsm, busquedaCjs]) {
+  assert.equal(b.SEARCH_APP_SLUG, 'buscador-inteligente');
+  assert.equal(b.isAppEnabled({ apps: { 'buscador-inteligente': { installed: true, enabled: true } } }, b.SEARCH_APP_SLUG), true);
+  assert.equal(typeof b.createSearchEventsRoute, 'function');
+  // Fuera del navegador no hace nada (y nunca tira).
+  b.sendSearchEvents([{ type: 'search' }]);
+}
+for (const f of ['../dist/search.js', '../dist/search.cjs']) {
+  const codigo = readFileSync(new URL(f, import.meta.url), 'utf8');
+  assert.doesNotMatch(codigo, /node:crypto|next\/cache/, `${f}: sin dependencias de Node ni de Next`);
+}
+console.log('search: OK');
