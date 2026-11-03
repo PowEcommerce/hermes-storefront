@@ -3,6 +3,7 @@
 // client component sólo lo que dibuja.
 import type { Brand } from '@/lib/brand';
 import { hermes } from '@/lib/hermes';
+import { panelVacio, type PanelVacio } from '@/lib/buscador';
 import { HeaderBar, type CategoriaDelMenu } from './HeaderBar';
 
 async function menu(): Promise<{ categorias: CategoriaDelMenu[]; tono: 'light' | 'dark' }> {
@@ -28,7 +29,18 @@ async function menu(): Promise<{ categorias: CategoriaDelMenu[]; tono: 'light' |
   }
 }
 
+/**
+ * El panel del buscador inteligente, o `null` si la marca no tiene la app
+ * `buscador-inteligente` prendida (entonces el buscador queda como siempre:
+ * el campo y los atajos a las categorías). `searchEnabled` nunca tira y va
+ * cacheado con el tag `settings`: prender o apagar la app se ve al toque.
+ */
+async function buscador(): Promise<PanelVacio | null> {
+  if (!(await hermes.catalog.searchEnabled())) return null;
+  return panelVacio(await hermes.catalog.searchConfig().catch(() => null));
+}
+
 export async function Header({ brand }: { brand: Brand }) {
-  const { categorias, tono } = await menu();
-  return <HeaderBar marca={{ name: brand.name, logo: brand.logo }} categorias={categorias} tono={tono} />;
+  const [{ categorias, tono }, panel] = await Promise.all([menu(), buscador()]);
+  return <HeaderBar marca={{ name: brand.name, logo: brand.logo }} categorias={categorias} tono={tono} buscador={panel} />;
 }

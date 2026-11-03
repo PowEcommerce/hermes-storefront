@@ -106,6 +106,7 @@ a muchos compradores).
 |---|---|
 | `config.get()` | `GET /api/v2/storefront/config` |
 | `config.apps()` | `GET /api/v2/storefront/apps` |
+| `config.appEnabled(slug)` → `boolean` | `GET /api/v2/storefront/apps` (instalada **y** prendida; nunca tira: ante un error, `false`) |
 | `config.sizeAdvisors()` | `GET /api/v2/storefront/size-advisors` |
 
 ### `catalog`
@@ -117,6 +118,9 @@ a muchos compradores).
 | `catalog.categories()` | `GET /api/v2/categories/header` |
 | `catalog.search(q, query?)` | `GET /api/v2/search` |
 | `catalog.suggest(q, { limit? }?)` | `GET /api/v2/search/suggest` |
+| `catalog.searchEnabled()` → `boolean` | ¿Tiene prendido el buscador inteligente (app `buscador-inteligente`)? Nunca tira |
+| `catalog.searchConfig()` | `GET /api/v2/search/config` (panel antes de tipear) |
+| `catalog.searchEvents({ events }, { headers: { 'X-Forwarded-For': ip } })` | `POST /api/v2/search/events` (desde tu servidor) |
 | `catalog.bySkus(skus)` | `GET /api/v2/items?skus=a,b,c` (tarjetas en el orden pedido; hasta 100 SKUs) |
 | `catalog.related(id)` / `catalog.look(id)` | `GET /api/v2/items/{id}/related` · `/look` |
 | `catalog.changeVariant(id, groupedPropertyIds)` | `GET /api/v2/items/{id}/change_variant` |
@@ -127,6 +131,38 @@ a muchos compradores).
 `discount_ranges`, `price: '1' | '-1'`, `views`, `new`…) y cualquier propiedad
 de la marca por nombre (`{ Material: 'Algodón' }`). Las listas se pueden pasar
 como array (se mandan separadas por coma).
+
+### Buscador inteligente (`@hermesecommerce/storefront/search`)
+
+Con la app `buscador-inteligente` prendida en la marca, usá
+`catalog.search` / `catalog.suggest` / `catalog.searchConfig`; sin ella,
+`catalog.products({ q })`. La medición (búsquedas, clics, carrito y compras)
+la manda el navegador a una ruta de tu tienda, que la reenvía con la IP del
+comprador:
+
+```ts
+// app/api/hermes/search-events/route.ts
+import { createSearchEventsRoute } from '@hermesecommerce/storefront/next';
+export const POST = createSearchEventsRoute({ client: hermes }); // siempre 202
+
+// client components
+import { trackSearch, trackSearchClick, trackSearchAddToCart, trackSearchPurchase } from '@hermesecommerce/storefront/search';
+```
+
+| Export | Qué hace |
+|---|---|
+| `trackSearch({ term, origin, results_count, attribution_token, shown_products })` | Evento `search` (página o panel) |
+| `trackSearchClick({ key, pg_id, position, attribution_token, origin, term })` | `detail-page-view` + guarda la atribución con `key` (el slug) |
+| `trackSearchAddToCart({ key, variant_id, quantity, revenue_cents })` | `add-to-cart` si el producto vino de una búsqueda (devuelve si midió) |
+| `trackSearchPurchase({ order_id })` | `purchase-complete` de lo agregado desde búsquedas (idempotente por orden) |
+| `sendSearchEvents(events, { endpoint? })` | Envío crudo (`sendBeacon` / `fetch` `keepalive`) |
+| `createSearchEventsRoute({ client })` | Route Handler que reenvía a `POST /api/v2/search/events` con `X-Forwarded-For` |
+| `isAppEnabled(apps, slug)`, `searchEventsBatch(body)`, `clientIpFrom(headers)`, `SEARCH_APP_SLUG` | Helpers puros |
+
+Las funciones del navegador y la ruta **nunca tiran**. El endpoint por
+defecto de los `track*` es `/api/hermes/search-events` (`SEARCH_EVENTS_ROUTE`).
+Todo esto también sale de `@hermesecommerce/storefront`; el subpath `/search`
+es el liviano para client components.
 
 ### `content` (page blocks, landings, estáticas)
 | Método | Endpoint | Tags |

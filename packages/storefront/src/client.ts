@@ -12,6 +12,7 @@ import {
 } from './http';
 import { type CacheAdapter, type CacheParams, cacheTagsFor } from './cache';
 import { isHermesApiError } from './errors';
+import { isAppEnabled, SEARCH_APP_SLUG } from './search';
 import type {
   CatalogQuery,
   CuerpoDe,
@@ -252,6 +253,18 @@ export function createStorefrontClient(opts: StorefrontClientOptions) {
     /** Apps instaladas (reseñas, favoritos, etiquetas…). */
     apps: (o?: RequestOptions) =>
       data<Ok<'Apps_apps'>>('GET', '/api/v2/storefront/apps', { options: o }),
+    /**
+     * ¿La app `slug` está instalada Y prendida en la marca? Usa `apps()` (misma
+     * caché: tag `settings`, que Hermes purga al instalar o apagar una app).
+     * NUNCA tira: ante cualquier error, `false` (la tienda como siempre).
+     */
+    appEnabled: async (slug: string, o?: RequestOptions): Promise<boolean> => {
+      try {
+        return isAppEnabled(await config.apps(o), slug);
+      } catch {
+        return false;
+      }
+    },
     /** Asesores de talle. */
     sizeAdvisors: (o?: RequestOptions) =>
       data<Ok<'SizeAdvisors_sizeAdvisors'>>(
@@ -333,6 +346,32 @@ export function createStorefrontClient(opts: StorefrontClientOptions) {
     suggest: (q: string, query: { limit?: number } = {}, o?: RequestOptions) =>
       data<Ok<'Search_sugerir'>>('GET', '/api/v2/search/suggest', {
         query: { ...query, q },
+        options: o,
+      }),
+    /**
+     * ¿La marca tiene prendido el buscador inteligente (app
+     * `buscador-inteligente`)? NUNCA tira: ante cualquier error, `false`.
+     * Con `false`, buscá con el listado: `catalog.products({ q })`.
+     */
+    searchEnabled: (o?: RequestOptions) =>
+      config.appEnabled(SEARCH_APP_SLUG, o),
+    /**
+     * Panel del buscador antes de tipear: `min_chars`, lo más buscado,
+     * categorías destacadas y recomendados.
+     */
+    searchConfig: (o?: RequestOptions) =>
+      data<Ok<'Search_config'>>('GET', '/api/v2/search/config', {
+        options: o,
+      }),
+    /**
+     * Medición del buscador (`POST /api/v2/search/events`, hasta 50 eventos).
+     * Llamalo desde TU servidor con la IP del comprador en
+     * `{ headers: { 'X-Forwarded-For': ip } }` (el límite es por IP); desde el
+     * navegador usá `sendSearchEvents` + `createSearchEventsRoute`.
+     */
+    searchEvents: (body: Body<'Search_registrarEventos'>, o?: RequestOptions) =>
+      data<Ok<'Search_registrarEventos'>>('POST', '/api/v2/search/events', {
+        body,
         options: o,
       }),
     /**
@@ -915,6 +954,7 @@ export function createStorefrontClient(opts: StorefrontClientOptions) {
   const configConTags = {
     get: conTags(config.get, () => tagsDe('Config_config')),
     apps: conTags(config.apps, () => tagsDe('Apps_apps')),
+    appEnabled: conTags(config.appEnabled, () => tagsDe('Apps_apps')),
     sizeAdvisors: conTags(config.sizeAdvisors, () =>
       tagsDe('SizeAdvisors_sizeAdvisors'),
     ),
@@ -940,6 +980,8 @@ export function createStorefrontClient(opts: StorefrontClientOptions) {
     categories: conTags(catalog.categories, () => tagsDe('Categories_header')),
     search: conTags(catalog.search, () => tagsDe('Search_buscar')),
     suggest: conTags(catalog.suggest, () => tagsDe('Search_sugerir')),
+    searchEnabled: conTags(catalog.searchEnabled, () => tagsDe('Apps_apps')),
+    searchConfig: conTags(catalog.searchConfig, () => tagsDe('Search_config')),
     bySkus: conTags(catalog.bySkus, () => tagsDe('Pdp_bySkus')),
     related: conTags(catalog.related, () => tagsDe('Pdp_related')),
     look: conTags(catalog.look, () => tagsDe('Pdp_look')),

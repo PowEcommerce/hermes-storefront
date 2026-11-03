@@ -99,7 +99,11 @@ export default async function ProductoPage({ params, searchParams }: PageProps<'
   }
 
   // Precios ya formateados en el server (el client sólo elige cuál mostrar).
-  const tallesConPrecio: TalleUI[] = talles.map((t) => ({ ...t, precio: t.precio ? precioVisible(t.precio) : null }));
+  const tallesConPrecio: TalleUI[] = talles.map((t) => ({
+    ...t,
+    precio: t.precio ? precioVisible(t.precio) : null,
+    centavos: t.precio ? Math.round(t.precio.actual * 100) : null,
+  }));
   const precioInicial = precioSinTalle(talles) ?? precioVisibleDe(precioDe(delColor ?? p.variant));
   const fotos = (delColor?.pictures?.length ? delColor.pictures : p.pictures) ?? [];
   const sinStock = p.disable_submit === true || talles.every((t) => t.stock <= 0);
@@ -133,6 +137,7 @@ export default async function ProductoPage({ params, searchParams }: PageProps<'
           <div className={styles.compraCelda}>
             <AddToCart
               key={colorId ?? 'unico'}
+              slug={slug}
               titulo={titulo}
               cucardas={cucardas}
               talles={tallesConPrecio}

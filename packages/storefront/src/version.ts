@@ -3,7 +3,7 @@
  * chequea test/version.test.ts): no hay inyección en el build, así que al
  * subir la versión del paquete se sube acá también.
  */
-export const SDK_VERSION = '0.1.1';
+export const SDK_VERSION = '0.2.0';
 
 /**
  * User-Agent que manda el SDK si el llamador no pasó uno. Hace falta: el WAF
