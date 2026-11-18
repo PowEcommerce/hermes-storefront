@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useTransition, type ReactNode } from 'react';
 import { trackSearchAddToCart } from '@hermesecommerce/storefront/search';
+import { trackGoPersonalAddToCart } from '@hermesecommerce/storefront/gopersonal';
 import { agregarAlCarrito, type ResultadoCarrito } from '@/app/carrito/actions';
 import type { PrecioVisible } from '@/lib/precios';
 import { CART_EVENT } from './CartBadge';
@@ -27,6 +28,7 @@ export interface Talle {
  */
 export function AddToCart({
   slug,
+  productId,
   titulo,
   cucardas = [],
   talles,
@@ -36,6 +38,8 @@ export function AddToCart({
 }: {
   /** El slug del producto: si se llegó desde el buscador inteligente, el agregado se le atribuye. */
   slug?: string;
+  /** El id del producto (Go Personal: el agregado al carrito). */
+  productId?: number | string | null;
   titulo: string;
   cucardas?: string[];
   talles: Talle[];
@@ -74,6 +78,13 @@ export function AddToCart({
             variant_id: elegido,
             quantity: cantidad,
             revenue_cents: talle?.centavos != null ? talle.centavos * cantidad : null,
+          });
+        // Go Personal (sólo manda algo con la app prendida): precio unitario en pesos.
+        if (productId != null)
+          trackGoPersonalAddToCart({
+            productId,
+            quantity: cantidad,
+            price: talle?.centavos != null ? talle.centavos / 100 : null,
           });
       }
     });

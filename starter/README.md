@@ -102,6 +102,7 @@ Las escribe `hermes link` en `.env` (ver [`.env.example`](./.env.example)):
 | `/api/carrito/resumen` | Cantidad para el badge del header | — |
 | `/api/buscador/sugerencias` | Sugerencias del panel del buscador inteligente (404 sin la app) | — |
 | `/api/hermes/search-events` | Medición del buscador inteligente: reenvía los eventos a Hermes con la IP del comprador (`createSearchEventsRoute`) | — |
+| `/gp-firebase.js` | Service worker de push de Go Personal (con el push prendido en la app; si no, 404) | dinámico |
 
 ### Page blocks (home y landings)
 
@@ -173,6 +174,13 @@ Si renombrás o movés la home, mantené esta ruta: es la URL que usa el admin.
   `@hermesecommerce/storefront/next` (cada GET sale con `next: { tags, revalidate }`
   de la spec) y marcado con `import 'server-only'`: el `psk_` no puede llegar
   al navegador (el build falla si un client component lo importa).
+- **Go Personal** (app `gopersonal` del App Store de Hermes). Con la app
+  prendida y el client id cargado (`storefront/config` → `gopersonal`, leído en
+  [`lib/gopersonal.ts`](./lib/gopersonal.ts)), el layout monta
+  [`components/GoPersonal.tsx`](./components/GoPersonal.tsx): carga el SDK sin
+  bloquear el render y manda páginas, vista de producto, carrito, compra y
+  login/logout (`@hermesecommerce/storefront/gopersonal`). Con el push
+  prendido, `/gp-firebase.js` sirve el service worker. Apagada: nada.
 - **Buscador inteligente** (app `buscador-inteligente` del App Store de Hermes).
   El header pregunta `hermes.catalog.searchEnabled()` (nunca tira; tag
   `settings`, así prender o apagar la app se ve al toque). Prendida: panel con

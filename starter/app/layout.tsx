@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import type { CSSProperties } from 'react';
 import { getBrand } from '@/lib/brand';
+import { getGoPersonal } from '@/lib/gopersonal';
+import { GoPersonal } from '@/components/GoPersonal';
 import { Header } from '@/components/Header';
 import './globals.css';
 
@@ -14,6 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const brand = await getBrand();
+  const gp = await getGoPersonal();
   const style = {
     ...brand.cssVars,
     ...(brand.fontFamily ? { '--brand-font': brand.fontFamily } : {}),
@@ -31,6 +34,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <footer className="border-t border-border py-8 text-center text-xs text-muted-fg">
           {brand.name} · Hecho con Hermes
         </footer>
+        {/* Go Personal (app del App Store): sólo con la app prendida y el client id cargado. */}
+        {gp.sdkEnabled && gp.clientId && <GoPersonal clientId={gp.clientId} />}
       </body>
     </html>
   );

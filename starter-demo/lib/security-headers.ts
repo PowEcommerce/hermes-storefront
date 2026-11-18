@@ -33,6 +33,14 @@ export const IMAGE_HOSTS = [
 /** Mercado Pago (checkout/Bricks, si la tienda los suma). */
 const MERCADO_PAGO = ['https://*.mercadopago.com', 'https://*.mercadopago.com.ar', 'https://*.mercadolibre.com', 'https://*.mlstatic.com'];
 
+/**
+ * Go Personal (app del App Store; components/GoPersonal.tsx): su SDK, su API y
+ * los recursos de su contenido; Firebase para el opt-in de push.
+ */
+export const GO_PERSONAL = ['https://*.gopersonal.ai'];
+const FIREBASE_SCRIPTS = ['https://www.gstatic.com'];
+const FIREBASE_CONNECT = ['https://*.googleapis.com'];
+
 /** Iframes que deja pasar el sanitizado del HTML del backoffice (lib/sanitize.ts). */
 const VIDEOS = ['https://www.youtube.com', 'https://youtube.com', 'https://www.youtube-nocookie.com', 'https://player.vimeo.com'];
 
@@ -65,7 +73,7 @@ const unicos = (xs: Array<string | null>) => [...new Set(xs.filter((x): x is str
 /**
  * La Content-Security-Policy. Compatible con Next (App Router mete scripts y
  * estilos inline, por eso `'unsafe-inline'`; en dev además `'unsafe-eval'` y el
- * websocket del HMR), Mercado Pago, los CDN de imágenes y la API de Hermes.
+ * websocket del HMR), Mercado Pago, Go Personal, los CDN de imágenes y la API de Hermes.
  * Hosts extra por env: `HERMES_CSP_IMG_HOSTS` y `HERMES_CSP_CONNECT_HOSTS`
  * (separados por coma).
  */
@@ -81,14 +89,28 @@ export function contentSecurityPolicy(env: Env = process.env, opts: OpcionesDeHe
     // Al terminar la compra el form postea a esta tienda y la Server Action
     // redirige al checkout hosteado, que vive en el dominio de cada marca.
     'form-action': ["'self'", 'https:'],
-    'script-src': ["'self'", "'unsafe-inline'", ...(dev ? ["'unsafe-eval'"] : []), ...MERCADO_PAGO],
-    'style-src': ["'self'", "'unsafe-inline'"],
-    'img-src': ["'self'", 'data:', 'blob:', ...unicos([...IMAGE_HOSTS, ...lista(env.HERMES_CSP_IMG_HOSTS)])],
+    'script-src': [
+      "'self'",
+      "'unsafe-inline'",
+      ...(dev ? ["'unsafe-eval'"] : []),
+      ...MERCADO_PAGO,
+      ...GO_PERSONAL,
+      ...FIREBASE_SCRIPTS,
+    ],
+    'style-src': ["'self'", "'unsafe-inline'", ...GO_PERSONAL],
+    'img-src': [
+      "'self'",
+      'data:',
+      'blob:',
+      ...unicos([...IMAGE_HOSTS, ...GO_PERSONAL, ...lista(env.HERMES_CSP_IMG_HOSTS)]),
+    ],
     'font-src': ["'self'", 'data:'],
     'connect-src': unicos([
       "'self'",
       ...api,
       ...MERCADO_PAGO,
+      ...GO_PERSONAL,
+      ...FIREBASE_CONNECT,
       ...lista(env.HERMES_CSP_CONNECT_HOSTS),
       ...(dev ? ['ws:', 'wss:'] : []),
     ]),

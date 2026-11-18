@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { CartLine as Linea } from '@hermesecommerce/storefront';
+import { goPersonalCartLines, trackGoPersonalQuantityChange } from '@hermesecommerce/storefront/gopersonal';
 import { cambiarCantidad } from '@/app/carrito/actions';
 import { preciosDeLinea } from '@/lib/precios';
 import { CART_EVENT } from './CartBadge';
@@ -16,6 +17,14 @@ export function CartLine({ line }: { line: Linea }) {
     start(async () => {
       const r = await cambiarCantidad(line.id, qty);
       setError(r.ok ? '' : r.message);
+      // Go Personal: `cart` si subió, `remove-cart` si bajó (con la app apagada no manda nada).
+      if (r.ok)
+        trackGoPersonalQuantityChange({
+          productId: line.item_id,
+          from: line.quantity,
+          to: qty,
+          price: goPersonalCartLines([line])[0]?.price ?? null,
+        });
       window.dispatchEvent(new Event(CART_EVENT));
     });
 

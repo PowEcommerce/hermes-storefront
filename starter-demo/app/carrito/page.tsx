@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { Cart } from '@hermesecommerce/storefront';
+import { goPersonalCartLines } from '@hermesecommerce/storefront/gopersonal';
 import { hermes } from '@/lib/hermes';
 import { leerCarrito } from '@/lib/cookies';
 import { mensajeDeError, mensajeDeErrorDeUrl } from '@/lib/errors';
 import { formatearCentavos, normalizarMonto } from '@/lib/precios';
 import { finalizarCompra } from '@/app/checkout/actions';
 import { CartLine } from '@/components/CartLine';
+import { GoPersonalCarrito } from '@/components/GoPersonal';
 import { CouponForm } from '@/components/CouponForm';
 import { SubmitButton } from '@/components/SubmitButton';
 
@@ -34,6 +36,7 @@ export default async function CarritoPage({ searchParams }: PageProps<'/carrito'
   if (!cart?.has_entries)
     return (
       <div className="ui-pagina py-24 text-center">
+        {cart && <GoPersonalCarrito lineas={[]} />}
         <h1 className="ui-t-titulo mb-6">Tu carrito está vacío</h1>
         <Link href="/" className="btn">
           Seguir comprando
@@ -44,6 +47,7 @@ export default async function CarritoPage({ searchParams }: PageProps<'/carrito'
   return (
     <div className="ui-pagina grid gap-10 md:grid-cols-[1fr_380px]">
       <section>
+        <GoPersonalCarrito lineas={goPersonalCartLines(cart.items)} />
         <h1 className="ui-t-titulo mb-6">Carrito</h1>
         {error && (
           <p role="alert" className="mb-4 rounded-brand border border-danger p-3 text-sm text-danger">

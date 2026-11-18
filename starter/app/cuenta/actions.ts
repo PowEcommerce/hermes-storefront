@@ -9,6 +9,8 @@ import { detalleDeError, mensajeDeError } from '@/lib/errors';
 import { ipDelComprador } from '@/lib/site';
 // Sólo rutas internas (evita open redirects con ?volver=https://…, //… o /\…).
 import { destinoSeguro } from '@/lib/redirects';
+// Go Personal: quién es el comprador (sólo con la app prendida).
+import { avisarIdentidadAGoPersonal } from '@/lib/gopersonal';
 
 export interface EstadoForm {
   error: string | null;
@@ -29,6 +31,7 @@ export async function ingresar(_prev: EstadoForm, form: FormData): Promise<Estad
     );
     if (!session) return { error: 'No pudimos iniciar la sesión. Probá de nuevo.' };
     await guardarSesion(session);
+    await avisarIdentidadAGoPersonal(session);
   } catch (e) {
     console.error('[hermes] cuenta:', detalleDeError(e));
     return { error: mensajeDeError(e, 'Email o contraseña incorrectos.') };
@@ -56,8 +59,10 @@ export async function registrarse(_prev: EstadoForm, form: FormData): Promise<Es
       { cartToken: await leerCarrito() },
       { headers: await ipDelComprador() },
     );
-    if (session) await guardarSesion(session);
-    else return { error: 'Te registraste. Ahora ingresá con tu email y contraseña.' };
+    if (session) {
+      await guardarSesion(session);
+      await avisarIdentidadAGoPersonal(session);
+    } else return { error: 'Te registraste. Ahora ingresá con tu email y contraseña.' };
   } catch (e) {
     console.error('[hermes] cuenta:', detalleDeError(e));
     return { error: mensajeDeError(e, 'No pudimos crear tu cuenta.') };
@@ -73,5 +78,6 @@ export async function salir(): Promise<void> {
     // Si la API falla, igual cerramos la sesión local.
   }
   await borrarSesion();
+  await avisarIdentidadAGoPersonal('logout');
   redirect('/');
 }
