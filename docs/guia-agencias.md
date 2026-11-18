@@ -1090,7 +1090,51 @@ siempre.
 
 ---
 
-## 11. Errores
+## 11. Go Personal
+
+Go Personal es una app del App Store de Hermes (`gopersonal`):
+personalización (carruseles y recomendaciones por comprador, pop-ups —el de
+intención de salida incluido—) y notificaciones push. La marca la prende y
+carga su client id desde el admin; la tienda lo lee de `storefront/config`:
+
+```json
+"gopersonal": { "sdk_enabled": true, "client_id": "…", "push_enabled": true }
+```
+
+Sin la app (o apagada) la clave no viene y la tienda sigue como siempre.
+Guardar la config purga el tag `settings`.
+
+Lo que tiene que hacer la tienda (el starter ya lo trae, ver
+`components/GoPersonal.tsx`):
+
+1. **Cargar el SDK** con el client id, sin bloquear el render
+   (`loadGoPersonal(clientId)` en un `useEffect`).
+2. **Mandar los eventos** con los atajos de
+   `@hermesecommerce/storefront/gopersonal`:
+
+| Momento | Atajo |
+|---|---|
+| Cada página (home, categoría, búsqueda, checkout) | `goPersonalPage(goPersonalContextFor(pathname))` |
+| Vista de producto (PDP) | `trackGoPersonalProductView(producto.id)` |
+| Agregar al carrito | `trackGoPersonalAddToCart({ productId, quantity, price })` (precio unitario en pesos) |
+| Cambiar cantidad / quitar | `trackGoPersonalQuantityChange({ productId, from, to, price })` |
+| Abrir el carrito | `trackGoPersonalCart(goPersonalCartLines(cart.items))` |
+| Compra (vuelta del checkout, con la orden confirmada) | `trackGoPersonalPurchase({ transactionId: order_id })` |
+| Login / registro / logout | `goPersonalLogin({ customerId, email })` / `goPersonalLogout()`; si pasa en una Server Action, la cookie de `goPersonalIdentityCookie` + `consumeGoPersonalIdentity()` |
+
+3. **Push**: el service worker tiene que estar en la raíz del dominio
+   (`/gp-firebase.js`). Con `createGoPersonalServiceWorkerRoute` en
+   `app/gp-firebase.js/route.ts` la tienda lo sirve cuando el push está
+   prendido (y 404 cuando no), cacheado un día.
+
+El id del producto es el `id` del catálogo de Hermes: el mismo que lee Go
+Personal para armar sus carruseles. Si tu CSP es obligatoria, sumá
+`https://*.gopersonal.ai` (scripts, conexiones, imágenes y estilos) y, para el
+opt-in de push, `https://www.gstatic.com` y `https://*.googleapis.com`.
+
+---
+
+## 12. Errores
 
 Siempre JSON, con uno de estos dos formatos:
 
@@ -1119,7 +1163,7 @@ los pasos del **checkout propio** y los **pagos** como
 `{ "ok": false, "error": "…", "errors": [...], "next": "…" }`. Cada endpoint
 lo tiene documentado en la spec.
 
-## 12. Rate limits
+## 13. Rate limits
 
 Las lecturas de catálogo y contenido no tienen límite por cliente, pero
 cacheálas: es lo que hace rápido a tu storefront. Hay límites por IP en lo
@@ -1144,7 +1188,7 @@ Si llamás desde tu servidor, todo tu tráfico sale de pocas IPs: para login y
 registro reenviá la IP real del comprador en `X-Forwarded-For` desde un proxy
 de confianza, o hablá con Pow.
 
-## 13. Versionado
+## 14. Versionado
 
 - `v2` es **estable**: sólo cambios aditivos (campos nuevos en las respuestas,
   endpoints nuevos, valores nuevos en enums documentados como abiertos).
@@ -1154,7 +1198,7 @@ de confianza, o hablá con Pow.
   migrar.
 - La spec (`/api/v2/openapi.json`) siempre refleja lo que está en producción.
 
-## 14. Checklist antes de salir a producción
+## 15. Checklist antes de salir a producción
 
 - [ ] El token privado está sólo en variables de entorno del servidor (con
       `hermes deploy` ya va como secreto del worker).
