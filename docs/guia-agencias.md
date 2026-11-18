@@ -1129,7 +1129,7 @@ Lo que tiene que hacer la tienda (el starter ya lo trae, ver
 
 El id del producto es el `id` del catálogo de Hermes: el mismo que lee Go
 Personal para armar sus carruseles. Si tu CSP es obligatoria, sumá
-`https://*.gopersonal.ai` (scripts, conexiones, imágenes y estilos) y, para el
+`https://*.gopersonal.ai` y `https://*.goshops.ai` (scripts, conexiones, imágenes y estilos) y, para el
 opt-in de push, `https://www.gstatic.com` y `https://*.googleapis.com`.
 
 ---

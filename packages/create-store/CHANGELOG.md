@@ -13,7 +13,7 @@
     compra (vuelta del checkout) y el login/registro/logout.
   - Con el push prendido: `/gp-firebase.js` (el service worker de Go Personal
     en la raíz del dominio, `app/gp-firebase.js/route.ts`); apagado, 404.
-  - La CSP suma `https://*.gopersonal.ai` y lo de Firebase para el opt-in de push.
+  - La CSP suma `https://*.gopersonal.ai`, `https://*.goshops.ai` y lo de Firebase para el opt-in de push.
   - Sin la app: nada cambia (no se carga ningún script).
 - `/api/buscador/sugerencias`: la respuesta vacía lleva `understood: null`
   (la API ahora lo devuelve siempre).

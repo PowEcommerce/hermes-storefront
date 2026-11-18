@@ -35,9 +35,10 @@ const MERCADO_PAGO = ['https://*.mercadopago.com', 'https://*.mercadopago.com.ar
 
 /**
  * Go Personal (app del App Store; components/GoPersonal.tsx): su SDK, su API y
- * los recursos de su contenido; Firebase para el opt-in de push.
+ * los recursos de su contenido (también sirve desde *.goshops.ai); Firebase
+ * para el opt-in de push.
  */
-export const GO_PERSONAL = ['https://*.gopersonal.ai'];
+export const GO_PERSONAL = ['https://*.gopersonal.ai', 'https://*.goshops.ai'];
 const FIREBASE_SCRIPTS = ['https://www.gstatic.com'];
 const FIREBASE_CONNECT = ['https://*.googleapis.com'];
 
