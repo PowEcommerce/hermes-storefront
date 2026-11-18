@@ -16,6 +16,7 @@ const VACIAS = sugerenciasDelPanel({
   products: [],
   total: 0,
   corrected_query: null,
+  understood: null,
   redirect: null,
   attribution_token: '',
   explain: null,

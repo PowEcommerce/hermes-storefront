@@ -1,6 +1,6 @@
 {
   "name": "@hermesecommerce/storefront",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "SDK TypeScript de la Storefront API v2 de Pow/Hermes para storefronts headless.",
   "license": "MIT",
   "repository": {
@@ -56,6 +56,16 @@
       "require": {
         "types": "./dist/content.d.cts",
         "default": "./dist/content.cjs"
+      }
+    },
+    "./gopersonal": {
+      "import": {
+        "types": "./dist/gopersonal.d.ts",
+        "default": "./dist/gopersonal.js"
+      },
+      "require": {
+        "types": "./dist/gopersonal.d.cts",
+        "default": "./dist/gopersonal.cjs"
       }
     },
     "./package.json": "./package.json"

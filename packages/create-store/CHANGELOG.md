@@ -1,5 +1,23 @@
 # Changelog de @hermesecommerce/create-store
 
+## 0.5.0
+
+- Las tiendas nuevas piden `@hermesecommerce/storefront@^0.3.0` (Go Personal y
+  los tipos al día con la API).
+- Templates (demo y skeleton): **Go Personal** (app `gopersonal` del App Store
+  de Hermes).
+  - Con la app prendida y el client id cargado: el layout carga el SDK de Go
+    Personal sin bloquear el render (`components/GoPersonal.tsx`) y le manda
+    las páginas (home, categorías, búsqueda, checkout), la vista de producto,
+    el agregado al carrito, los cambios de cantidad, el carrito abierto, la
+    compra (vuelta del checkout) y el login/registro/logout.
+  - Con el push prendido: `/gp-firebase.js` (el service worker de Go Personal
+    en la raíz del dominio, `app/gp-firebase.js/route.ts`); apagado, 404.
+  - La CSP suma `https://*.gopersonal.ai`, `https://*.goshops.ai` y lo de Firebase para el opt-in de push.
+  - Sin la app: nada cambia (no se carga ningún script).
+- `/api/buscador/sugerencias`: la respuesta vacía lleva `understood: null`
+  (la API ahora lo devuelve siempre).
+
 ## 0.4.0
 
 - Las tiendas nuevas piden `@hermesecommerce/storefront@^0.2.0` (buscador

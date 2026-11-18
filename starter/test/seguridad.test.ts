@@ -85,6 +85,12 @@ describe('securityHeaders', () => {
     expect(dir('connect-src')).toContain(new URL(DEFAULT_API_URL).origin);
     expect(dir('connect-src')).toContain('https://api.agencia.com');
     expect(dir('frame-src')).toContain('https://www.youtube.com');
+    // Go Personal (app del App Store): SDK, API y contenido; Firebase para el opt-in de push.
+    expect(dir('script-src')).toContain('https://*.gopersonal.ai');
+    expect(dir('connect-src')).toContain('https://*.gopersonal.ai');
+    expect(dir('connect-src')).toContain('https://*.goshops.ai');
+    expect(dir('img-src')).toContain('https://*.gopersonal.ai');
+    expect(dir('script-src')).toContain('https://www.gstatic.com');
     expect(dir('frame-ancestors')).toBe("frame-ancestors 'self'");
     expect(dir('object-src')).toBe("object-src 'none'");
   });
@@ -92,7 +98,7 @@ describe('securityHeaders', () => {
     const csp = contentSecurityPolicy({ NODE_ENV: 'production' });
     const connect = csp.split('; ').find((d) => d.startsWith('connect-src ')) ?? '';
     expect(connect).toBe(
-      `connect-src 'self' ${new URL(DEFAULT_API_URL).origin} https://*.mercadopago.com https://*.mercadopago.com.ar https://*.mercadolibre.com https://*.mlstatic.com`,
+      `connect-src 'self' ${new URL(DEFAULT_API_URL).origin} https://*.mercadopago.com https://*.mercadopago.com.ar https://*.mercadolibre.com https://*.mlstatic.com https://*.gopersonal.ai https://*.goshops.ai https://*.googleapis.com`,
     );
   });
   it('en dev suma unsafe-eval y el websocket del HMR; hosts extra por env', () => {

@@ -21,7 +21,7 @@ export const CARPETA_EN_EL_REPO: Record<Template, string> = { demo: 'starter-dem
  * del repo. Un test verifica que coincidan con packages/{storefront,cli}/package.json.
  */
 export const VERSIONES_PUBLICADAS: Record<string, string> = {
-  '@hermesecommerce/storefront': '^0.2.0',
+  '@hermesecommerce/storefront': '^0.3.0',
   '@hermesecommerce/cli': '^0.3.2',
 };
 

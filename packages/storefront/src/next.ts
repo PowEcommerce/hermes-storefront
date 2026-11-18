@@ -138,3 +138,7 @@ export {
   createSearchEventsRoute,
   type CreateSearchEventsRouteOptions,
 } from './search';
+export {
+  createGoPersonalServiceWorkerRoute,
+  type CreateGoPersonalServiceWorkerRouteOptions,
+} from './gopersonal';

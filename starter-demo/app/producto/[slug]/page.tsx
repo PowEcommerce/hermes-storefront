@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import { hermes } from '@/lib/hermes';
 import { esNoEncontrado } from '@/lib/errors';
 import { AddToCart, type Talle as TalleUI } from '@/components/AddToCart';
+import { GoPersonalProducto } from '@/components/GoPersonal';
 import { precioDe, precioSinTalle, precioVisible, type Precio } from '@/lib/precios';
 import { cardFromRelacionado, cucardasDe, type ProductCardData } from '@/lib/catalog';
 import { Reviews } from '@/components/Reviews';
@@ -119,6 +120,7 @@ export default async function ProductoPage({ params, searchParams }: PageProps<'
 
   return (
     <div>
+      {p.id != null && <GoPersonalProducto productId={p.id} />}
       <div className={styles.ficha}>
         <div className={styles.galeriaCelda}>
           <Galeria fotos={fotos} alt={titulo} />
@@ -138,6 +140,7 @@ export default async function ProductoPage({ params, searchParams }: PageProps<'
             <AddToCart
               key={colorId ?? 'unico'}
               slug={slug}
+              productId={p.id}
               titulo={titulo}
               cucardas={cucardas}
               talles={tallesConPrecio}

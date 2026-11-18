@@ -164,6 +164,51 @@ defecto de los `track*` es `/api/hermes/search-events` (`SEARCH_EVENTS_ROUTE`).
 Todo esto también sale de `@hermesecommerce/storefront`; el subpath `/search`
 es el liviano para client components.
 
+### Go Personal (`@hermesecommerce/storefront/gopersonal`)
+
+Con la app `gopersonal` prendida en la marca, `config.get()` trae
+`gopersonal: { sdk_enabled, client_id, push_enabled }` (nunca el token; el
+cambio de config purga el tag `settings`). `goPersonalFrom(config)` lo
+convierte en `{ sdkEnabled, clientId, pushEnabled }` (todo apagado sin la app).
+
+```ts
+// client component en el layout (sólo si sdkEnabled): carga el SDK sin bloquear el render
+import { loadGoPersonal, goPersonalPage, goPersonalContextFor, consumeGoPersonalIdentity } from '@hermesecommerce/storefront/gopersonal';
+useEffect(() => loadGoPersonal(clientId), [clientId]);
+useEffect(() => {
+  consumeGoPersonalIdentity();
+  goPersonalPage(goPersonalContextFor(pathname));
+}, [pathname]);
+
+// app/gp-firebase.js/route.ts — el service worker de push en la raíz del dominio
+import { createGoPersonalServiceWorkerRoute } from '@hermesecommerce/storefront/next';
+export const dynamic = 'force-dynamic';
+export const GET = createGoPersonalServiceWorkerRoute({ client: hermes }); // 404 con el push apagado
+```
+
+| Export | Llamada a Go Personal (`window.gsSDK`) |
+|---|---|
+| `loadGoPersonal(clientId)` | `<script async src="https://sdk.gopersonal.ai/gs-sdk.js">` + `new GSSDK.default(clientId, { provider: 'Custom', singlePage: true })` |
+| `goPersonalPage(goPersonalContextFor(pathname))` | `getContentByContext('home' \| 'category' \| 'search' \| 'checkout' \| 'unknown', …)` |
+| `trackGoPersonalProductView(productId)` | `getContentByContext('product_detail', { product_id })` + `addInteraction({ event: 'view', item })` |
+| `trackGoPersonalAddToCart({ productId, quantity, price })` | `addInteraction({ event: 'cart', item, quantity, price })` |
+| `trackGoPersonalRemoveFromCart(…)` / `trackGoPersonalQuantityChange({ productId, from, to, price })` | `remove-cart` (o `cart`) con la diferencia |
+| `trackGoPersonalCart(goPersonalCartLines(cart.items))` | `getContentByContext('cart', { cart_items })` + `updateState({ cart })`, o `clean-cart` si está vacío |
+| `trackGoPersonalPurchase({ transactionId })` | `addInteractionState('cart', { transactionId })` (idempotente por orden) |
+| `goPersonalLogin({ customerId, email })` / `goPersonalLogout()` | `login(id, { email, param_updateCartFromCustomer: true })` / `logout()` |
+| `goPersonalIdentityCookie(…)` + `consumeGoPersonalIdentity()` | Login/logout hechos en una Server Action: cookie corta que aplica la próxima página |
+
+`item` es el id del producto de Hermes (el mismo `id` del catálogo que lee Go
+Personal) y `price`, el precio unitario en pesos. Lo que se llama antes de que
+el SDK cargue queda en una cola y sale apenas carga; sin `loadGoPersonal` (la
+app apagada) no sale nada. Las funciones del navegador y la ruta **nunca
+tiran**. La intención de salida (pop-ups) la maneja el SDK de Go Personal.
+
+La ruta de `/gp-firebase.js` no le pide el archivo a Go Personal en cada
+request: lo guarda en memoria y, en Cloudflare Workers, en la Cache API del
+colo, un día (`ttlSeconds`); contesta `application/javascript` con
+`Cache-Control: public, max-age=3600, s-maxage=86400`.
+
 ### `content` (page blocks, landings, estáticas)
 | Método | Endpoint | Tags |
 |---|---|---|
