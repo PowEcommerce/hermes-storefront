@@ -205,6 +205,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/cart/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recuperar un carrito abandonado (link del mail)
+         * @description El botón «Recuperar carrito» del mail de carrito abandonado. Copia las líneas del carrito del link (`r`, firmado) al carrito del `X-Cart-Token` —borrando las que tenía— o, sin carrito, crea uno (el token nuevo vuelve en `X-Cart-Token`). Siempre contesta 302 al carrito de la tienda (`/checkout/carrito`) con los UTM del mail: con un link vencido o inválido no copia nada.
+         */
+        get: operations["Cart_recover"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/cart/recover/unsubscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Baja de los recordatorios de carrito (página)
+         * @description El link «Darme de baja» del mail de carrito abandonado: una página HTML que pide confirmar (un GET no da de baja: los antivirus abren los links). El botón hace POST a la misma URL.
+         */
+        get: operations["Cart_paginaDeBaja"];
+        put?: never;
+        /**
+         * Baja de los recordatorios de carrito (confirmar)
+         * @description Da de baja el email del carrito del link (`r`) de los mails de carrito abandonado de esta marca. Idempotente. Contesta la página HTML de "listo" (o la de link inválido, con 400).
+         */
+        post: operations["Cart_darDeBaja"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/cart/remove_coupon": {
         parameters: {
             query?: never;
@@ -345,6 +389,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/checkout/payment/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Volver sin pagar (MODO / GoCuotas / Fiserv hosted)
+         * @description El comprador cerró el modal de MODO o volvió de GoCuotas o de Fiserv sin pagar: se re-consulta la pasarela y, si no cobró, la orden se cancela (stock devuelto) y el carrito queda abierto para pagar con otro medio. Si ya cobró, `next: confirmacion`.
+         */
+        post: operations["CheckoutPayment_cancelar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/firstdata_api": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar con Fiserv por API
+         * @description Crea la orden y cobra del lado del servidor con la API de Fiserv (los datos de la tarjeta pasan por acá hacia la pasarela y no se guardan ni se loguean), con la promoción elegida en `promotions/*`: CFT de la promo y descuento por tarjeta. Rechazo: 422 con el mensaje para el comprador. Sin respuesta de Fiserv, la orden queda en proceso (`payment_status: null`).
+         */
+        post: operations["CheckoutPayment_firstdataApi"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/firstdata_hosted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar con Fiserv hosted (IPG Connect)
+         * @description Crea la orden (stock tomado, importe con el CFT de la promoción elegida en `promotions/*`; con una promo «full price», a precio de lista) y devuelve el form que el navegador manda DIRECTO a Fiserv: `action_url` y los campos ocultos (`fields`, con el hash firmado). El navegador les agrega `cardnumber`, `expmonth`, `expyear` y `cvm` (la tarjeta no pasa por esta API) y hace el POST. Fiserv devuelve al comprador a la confirmación de la tienda o, si el pago no salió, a `/checkout/payment?epost_error=true` (ahí llamá `payment/cancel` para reabrir el carrito). Si la marca tiene Konduto, el análisis corre al volver: una compra denegada se cancela y se reintegra.
+         */
+        post: operations["CheckoutPayment_firstdataHosted"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/gift_card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aplicar la gift card de la marca
+         * @description Gift card de CTC (los puntos de la marca): consulta el saldo y deja como descuento lo que la tarjeta cubre de los productos (no el envío); el resto se paga con otro medio. NO se debita acá: se quema al pagar el resto (si CTC no la quema, el pago contesta 422 «No se pudo aplicar la gift card» y la tarjeta sale del carrito). Si con ella la compra queda en cero, se quema y la orden se crea pagada (`paid: true`, `next: confirmacion`). Mientras no se quemó se puede quitar con `DELETE`.
+         */
+        post: operations["CheckoutPayment_giftCard"];
+        /**
+         * Quitar la gift card de la marca
+         * @description Saca la gift card de CTC del carrito mientras no se haya quemado (eso pasa recién al pagar). Devuelve los totales sin ella. 422 si no hay una, si ya se usó o si la compra ya está en proceso (`next: confirmacion`).
+         */
+        delete: operations["CheckoutPayment_quitarGiftCard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/gocuotas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar con GoCuotas
+         * @description Crea la orden y el checkout de GoCuotas; devuelve `redirect_url`. GoCuotas vuelve a la confirmación (pago completo) o a `/checkout/payment?gocuotas_error=true`.
+         */
+        post: operations["CheckoutPayment_gocuotas"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/checkout/payment/mercadopago": {
         parameters: {
             query?: never;
@@ -374,11 +522,31 @@ export interface paths {
         };
         /**
          * Medios de pago habilitados
-         * @description En el orden del backoffice. Hoy: tarjeta de Mercado Pago (`card`, con la `public_key` para tokenizar), Checkout Pro (`redirect`) y transferencia (`offline`).
+         * @description En el orden del backoffice. Hoy: tarjeta de Mercado Pago (`card`, con la `public_key` para tokenizar), Checkout Pro (`redirect`), transferencia, Rapipago y Pago Fácil (`offline`), MODO (`modo`, con el `sdk_url` del modal y, si la marca no lo deja acumular con cupones o promociones, `no_acumulable`), GoCuotas (`redirect`), Talo (`talo`, transferencia a un alias/CVU que confirma sola), Payway (`payway`, con `sdk_url`, `api_url` y `public_key` de decidir.js y `cybersource_disabled` si la marca inhabilitó Cybersource; sólo con alguna promoción bancaria vigente) Fiserv hosted (`epostnet`, kind `firstdata_hosted`) y Fiserv por API (`firstdata_api`), los dos sólo con alguna promoción bancaria vigente, la gift card de Oh! (`oh_card`, con `available`) y la gift card de la marca (`gift_card`, CTC, con `available`). Con `X-Cart-Token`, `no_acumulable` trae el total que se le cobraría a MODO y, si la marca tiene ClearSale, `antifraud.clearsale` trae el `app_id` y el `session_id` del fingerprint. Con Payway o Fiserv, `antifraud.konduto` trae la public key de Konduto si la marca lo tiene.
          */
         get: operations["CheckoutPayment_methods"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/modo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar con MODO (QR + deeplink)
+         * @description Crea la orden y el pedido de pago en MODO; devuelve `qr`, `deeplink` y `checkout_id` para el SDK de MODO, más `callback_url` (volver al carrito) y `callback_url_success` (la confirmación). Si la marca no deja acumular MODO con cupones o promociones, se cobra sin ese descuento. Sin pagar, la orden se cancela a los 30 minutos (o antes con `payment/cancel`).
+         */
+        post: operations["CheckoutPayment_modo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -415,10 +583,130 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Pagar con un medio offline (transferencia)
-         * @description Crea la orden pendiente de pago; los datos para transferir salen en la confirmación (`payment.transfer`).
+         * Pagar con un medio offline (transferencia, Rapipago, Pago Fácil)
+         * @description Crea la orden pendiente de pago. Transferencia: los datos para transferir salen en la confirmación (`payment.transfer`). Rapipago / Pago Fácil: pide el cupón a Mercado Pago (vence a los 5 días) y lo devuelve en `external_ticket_url` (también en la confirmación, `payment.external_ticket_url`); el pago lo avisa Mercado Pago cuando la persona paga en la ventanilla.
          */
         post: operations["CheckoutPayment_offline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/oh_card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aplicar la gift card de Oh!
+         * @description Consulta el saldo y DEBITA en el momento lo que la tarjeta cubre de los productos (no el envío): queda como descuento del carrito y el resto se paga con otro medio. Si con eso la compra queda en cero, la orden se crea pagada (`paid: true`, `next: confirmacion`). No se puede quitar: si la compra se abandona, el débito se revierte solo.
+         */
+        post: operations["CheckoutPayment_ohCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/payway": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar con Payway (Decidir) y promoción bancaria
+         * @description Crea la orden y cobra con la tarjeta tokenizada por decidir.js (`sdk_url`, `api_url` y `public_key` de `payment/methods`), con la promoción elegida en `promotions/*`: el importe lleva el CFT de la promo y el descuento por tarjeta, y con una promo «full price» se cobra a precio de lista (`full_price_total_cents`). Cybersource analiza el pago salvo que la marca lo haya inhabilitado. Rechazo del banco o del antifraude: 422 con el mensaje para el comprador. Sin respuesta de Payway, la orden queda en proceso (`payment_status: null`) y se resuelve sola.
+         */
+        post: operations["CheckoutPayment_payway"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/promotions/availables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Promociones disponibles para un banco y una tarjeta (Payway y Fiserv)
+         * @description Las promociones vigentes de ese banco y esa tarjeta que aplican al carrito: mínimo de compra, compras nacionales, promos que no conviven con una promo de carrito y las que excluyen el cupón aplicado. `fee` es el código de cuotas del backoffice (13 = 3, 16 = 6, 7 = 12 «Plan Ahora»; el resto, la cantidad) y `ctf` el costo financiero (0 = sin interés).
+         */
+        get: operations["CheckoutPayment_promocionesDisponibles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/promotions/banks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bancos con promoción (Payway y Fiserv)
+         * @description Los bancos con alguna promoción bancaria vigente hoy, en el orden del backoffice. Primer select del form de Payway y de Fiserv (banco → tarjeta → promoción).
+         */
+        get: operations["CheckoutPayment_promocionesBancos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/promotions/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tarjetas con promoción (Payway y Fiserv)
+         * @description Las tarjetas con alguna promoción vigente hoy, con su id en cada pasarela (`payway_id`, `firstdata_id`, `mercadopago_id`). Como el legacy, `?bank=` no filtra: el cruce lo hace `availables`.
+         */
+        get: operations["CheckoutPayment_promocionesTarjetas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/checkout/payment/talo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar con Talo (transferencia a un alias/CVU)
+         * @description Crea la orden y la intención de transferencia en Talo. La confirmación muestra el alias, el CVU y hasta cuándo se puede pagar (`payment.transfer`, `payment.type = TaloPayment`). Al transferir el monto exacto, Talo avisa y la orden queda paga sola; si vence sin pago, se cancela con el stock devuelto. Un pago de más se paga y se devuelve el excedente; uno de menos que vence se devuelve.
+         */
+        post: operations["CheckoutPayment_talo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -435,7 +723,7 @@ export interface paths {
         get?: never;
         /**
          * Guardar el envío
-         * @description Envío a domicilio (`address`, con `provider`/`shippment_method` de una opción de `shipping/quote`), retiro en sucursal (`andreani`, de `shipping/subsidiaries`) o en local (`store`, de `shipping/stores`). Con "misma dirección" para facturar, `next` es `payment`; si no, `billing_address`. 422 con `errors` por campo y el `estado` actual si algo no valida.
+         * @description Envío a domicilio (`address`, con `provider`/`shippment_method` de una opción de `shipping/quote`), retiro en sucursal (`andreani`, de `shipping/subsidiaries`) o en local (`store`, de `shipping/stores`). Con "misma dirección" para facturar, `next` es `payment`; si no, `billing_address`. 422 con `errors` por campo y el `estado` actual si algo no valida. 403 si el email o el DNI de quien recibe (`doc_number`) están bloqueados.
          */
         put: operations["Checkout_shipping"];
         post?: never;
@@ -1035,7 +1323,7 @@ export interface paths {
         };
         /**
          * Página de resultados de búsqueda
-         * @description Busca `q` (sinónimos, corrección y reglas de merchandising del backoffice) y devuelve los productos con la forma de la PLP, las facetas y sugerencias. Si una regla redirige el término, `redirect` trae la URL y no hay resultados. Acepta todos los filtros del listado.
+         * @description Busca `q` (sinónimos, corrección, reglas de merchandising del backoffice y lo que se entiende de lo tipeado: «remeras azules», «hasta $30.000») y devuelve los productos con la forma de la PLP, las facetas y sugerencias. Si una regla redirige el término, `redirect` trae la URL y no hay resultados. Acepta todos los filtros del listado.
          */
         get: operations["Search_buscar"];
         put?: never;
@@ -1415,9 +1703,29 @@ export interface paths {
         };
         /**
          * Configuración de la marca para el storefront
-         * @description Lo que depende de cada marca, en un solo hash: qué grupos de rutas v2 sirve esta API (`nest`), el client id público de Google para el login (`google_client_id`, sólo con cuentas) y la config + tokens CSS del checkout (`checkout`, o null). Es el primer pedido de un storefront: cachealo (minutos) y no lo pidas en cada página. Nunca falla: si la plataforma no responde devuelve `{ nest: [], checkout: null }`.
+         * @description Lo que depende de cada marca, en un solo hash: qué grupos de rutas v2 sirve esta API (`nest`), el client id público de Google para el login (`google_client_id`, sólo con cuentas) y la config + tokens CSS del checkout (`checkout`, o null) y, con la app Pre-Order prendida, el texto de la fecha de preventa (`pre_order.envio_texto`, con `{fecha}`) y el estilo de la etiqueta de preventa que administra Pre-Order (`pre_order.etiqueta`: text_color, background_color, border_color, border_width, border_radius, font_size, font_weight; o null si la tienda no tiene esa etiqueta o está apagada), para dibujar la leyenda de preventa del carrito y del checkout. Es el primer pedido de un storefront: cachealo (minutos) y no lo pidas en cada página. Nunca falla: si la plataforma no responde devuelve `{ nest: [], checkout: null }`.
          */
         get: operations["Config_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/storefront/event-logos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Logos de evento del footer
+         * @description Los logos de los eventos vigentes (app «Logos de evento»: Cyber Monday, Hot Sale…) para el footer, y `proximo_cambio`: cuándo entra o sale solo el próximo evento. App no instalada, apagada o con config inválida (o una falla): `{ "footer": [], "proximo_cambio": null }`.
+         */
+        get: operations["EventLogos_eventLogos"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1435,7 +1743,7 @@ export interface paths {
         };
         /**
          * Configuración pública de la ruleta de premios
-         * @description Textos, colores, reglas de aparición y los gajos de la rueda. `installed: false` = la app no está instalada (el sitio se comporta como antes de la app); `enabled: false` = está instalada pero apagada. Los premios vienen SIN peso y SIN tipo: las probabilidades no salen del servidor.
+         * @description La CAMPAÑA activa: textos, colores, reglas de aparición y los gajos de la rueda. Sin campaña activa (ninguna programada para hoy, o la del momento pausada o terminada) viene `enabled: false`. `installed: false` = la app no está instalada (el sitio se comporta como antes de la app); `enabled: false` = está instalada pero apagada. Los premios vienen SIN peso y SIN tipo: las probabilidades no salen del servidor.
          */
         get: operations["Roulette_config"];
         put?: never;
@@ -1477,7 +1785,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar una vista de la ruleta
-         * @description Suma 1 al contador de vistas del día. Sin cuerpo. Es telemetría: nunca falla el request del visitante.
+         * @description Suma 1 al contador de vistas del día. El cuerpo es opcional: `device` (`mobile`/`desktop`) y `path` (el pathname de la página) alimentan el desglose del dashboard. La ruta NO se guarda cruda: se convierte en un tipo de página (home, categoria, producto, carrito, checkout, buscador, cuenta, otra) y el resto se descarta. Es telemetría: nunca falla el request del visitante.
          */
         post: operations["Roulette_views"];
         delete?: never;
@@ -2264,6 +2572,36 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        BusquedaChipEntendido: {
+            /**
+             * @description `attr` = un valor de atributo (color, talle...); `price` = un rango de precio.
+             * @enum {string}
+             */
+            type: "attr" | "price";
+            /** @description Lo que se tipeó y se sacó del texto (ej. «azules», «por menos de 30000»). */
+            text: string;
+            /** @description Sólo `attr`: la propiedad (Color, Talle...). */
+            property?: string;
+            /** @description Sólo `attr`: el valor tal cual existe en el catálogo (puede traer espacios). */
+            value?: string;
+            /** @description Los parámetros de la PLP que aplica este chip. */
+            params: {
+                [key: string]: string;
+            };
+        };
+        BusquedaEntendida: {
+            /** @description El texto que se buscó como palabras, sin lo entendido. */
+            query: string;
+            /** @description Filtros de la PLP aplicados por atributos entendidos (Color, multicolors, Talle, ...). */
+            filters: {
+                [key: string]: string;
+            };
+            price: {
+                min: number | null;
+                max: number | null;
+            } | null;
+            chips: components["schemas"]["BusquedaChipEntendido"][];
+        };
         BusquedaEvento: {
             /** @enum {string} */
             type: "search" | "detail-page-view" | "add-to-cart" | "purchase-complete";
@@ -2299,7 +2637,10 @@ export interface components {
             /** @example Color */
             name: string;
             values?: {
+                /** @description El valor tal cual está en el catálogo (puede traer espacios al final, p. ej. «Azul  »): mandalo así como filtro (`Color=<value>`). */
                 value: string;
+                /** @description El valor para mostrar: `value` sin espacios en las puntas. */
+                label: string;
                 hex: string | null;
                 count: number;
             }[];
@@ -2341,6 +2682,8 @@ export interface components {
         BusquedaResultados: {
             query: string;
             corrected_query: string | null;
+            /** @description Lo que se entendió de `q` y se aplicó como filtro (color, talle, precio), para mostrar chips. Para sacar un chip: volvé a pedir con `q = understood.query`, los `params` de los chips que quedan y `understand=0`. Null si no se entendió nada o si aplicarlo daba 0 resultados. */
+            understood: components["schemas"]["BusquedaEntendida"] | null;
             total: number;
             items: components["schemas"]["CatalogoRecord"][];
             facets: components["schemas"]["BusquedaFaceta"][];
@@ -2384,6 +2727,7 @@ export interface components {
             total: number;
             corrected_query: string | null;
             redirect: string | null;
+            understood: components["schemas"]["BusquedaEntendida"] | null;
             attribution_token: string;
             explain: {
                 [key: string]: unknown;
@@ -2910,7 +3254,13 @@ export interface components {
             step?: string;
             choice?: components["schemas"]["CheckoutEnvioElegido"] | null;
             bill?: components["schemas"]["CheckoutFacturacion"] | null;
-            gift_card?: null;
+            gift_card?: {
+                last_four: string;
+                /** @description Lo que descuenta la gift card de la marca (centavos). */
+                amount_cents: number;
+                /** @description Ya se quemó (al pagar): no se puede quitar. */
+                burned: boolean;
+            } | null;
             totals?: components["schemas"]["CheckoutTotales"];
             /** @description Estado de la orden en snake_case (`paid`, `processing`, …). */
             status?: string;
@@ -3078,7 +3428,19 @@ export interface components {
             step: string;
             choice: components["schemas"]["CheckoutEnvioElegido"] | null;
             bill: components["schemas"]["CheckoutFacturacion"] | null;
-            gift_card: null;
+            gift_card: {
+                last_four: string;
+                /** @description Lo que descuenta la gift card de la marca (centavos). */
+                amount_cents: number;
+                /** @description Ya se quemó (al pagar): no se puede quitar. */
+                burned: boolean;
+            } | null;
+            oh_card: {
+                last_four: string;
+                /** @description Lo que descuenta la gift card de Oh! (centavos). */
+                amount_cents: number;
+                authorization_code: number | null;
+            } | null;
             totals: components["schemas"]["CheckoutTotales"];
         };
         /** @description Los datos de facturación. */
@@ -3507,9 +3869,24 @@ export interface components {
             ancho: number;
             alto: number;
         };
+        ConfigLogosDeEvento: {
+            /** @description Logos de los eventos vigentes (app «Logos de evento»), en el orden de los eventos, sin repetir url, máx 6. Vacío = no mostrar nada. */
+            footer: {
+                /** Format: uri */
+                url: string;
+                alt: string;
+                /** Format: uri */
+                link: string | null;
+            }[];
+            /**
+             * Format: date-time
+             * @description Próximo instante (ISO8601 con offset de Buenos Aires) en que algún evento prendido entra o sale por su `desde`/`hasta`. null si no hay ninguno. Nadie purga a esa hora: regenerá tu copia entonces (o no la cachees más allá).
+             */
+            proximo_cambio: string | null;
+        };
         ConfigStorefront: {
             /** @description Grupos de rutas v2 que la marca sirve desde esta API. Para una marca headless nueva vienen todos; `cart`, `checkout` y `account` van siempre juntos. */
-            nest: ("products.filters" | "products.category" | "categories.header" | "static_contents" | "home" | "landings" | "settings" | "items" | "items.skus" | "stores" | "cart" | "checkout" | "account")[];
+            nest: ("products.filters" | "products.category" | "categories.header" | "static_contents" | "home" | "landings" | "settings" | "items" | "items.skus" | "items.related" | "stores" | "cart" | "checkout" | "account")[];
             /** @description Client id PÚBLICO de Google (Google Identity Services) para el login con Google. Sólo viene si la marca tiene `account`. */
             google_client_id?: string | null;
             /** @description Config del checkout de la marca, o null si la marca no tiene una cargada. */
@@ -3525,6 +3902,33 @@ export interface components {
                     [key: string]: string;
                 };
             } | null;
+            /** @description Sólo con la app Pre-Order prendida: el texto de la fecha y el estilo de la leyenda de preventa del carrito y del checkout. */
+            pre_order?: {
+                /**
+                 * @description Texto de la fecha de preventa, con `{fecha}` donde va la fecha.
+                 * @example Envío estimado desde el {fecha}
+                 */
+                envio_texto: string;
+                /** @description Estilo de la etiqueta de preventa que administra Pre-Order (su `appearance.global`): colores (hex o rgb/rgba) y medidas en px, null los que no tenga. null si la tienda no tiene esa etiqueta o está apagada. */
+                etiqueta: {
+                    text_color: string | null;
+                    background_color: string | null;
+                    border_color: string | null;
+                    border_width: number | null;
+                    border_radius: number | null;
+                    font_size: number | null;
+                    font_weight: number | null;
+                } | null;
+            };
+            /** @description Sólo con la app Go Personal instalada y prendida. Nunca trae el token del catálogo. */
+            gopersonal?: {
+                /** @description Cargar el SDK de Go Personal (prendido en la app y con el client id cargado). */
+                sdk_enabled: boolean;
+                /** @description El client id de Go Personal para el SDK, o null. */
+                client_id: string | null;
+                /** @description Servir el service worker de push `/gp-firebase.js` en la raíz del dominio. */
+                push_enabled: boolean;
+            };
         };
         Direccion: {
             id: number;
@@ -3803,6 +4207,13 @@ export interface components {
             /** @description Pesos. */
             coupon_discount: number;
             category: string | null;
+            /** @description Pre-Order: la línea se vendió en preventa. Sólo en las marcas con la app. */
+            pre_order?: boolean;
+            /**
+             * @description Pre-Order: día de ingreso de la línea en preventa, `YYYY-MM-DD` (Argentina, sin hora: no parsear como UTC), para «Envío estimado a partir del 20/11». null si no va en preventa.
+             * @example 2026-11-20
+             */
+            preorder_date?: string | null;
         };
         Landing: {
             slug: string | null;
@@ -3879,6 +4290,15 @@ export interface components {
                 header_visible: boolean | null;
             }[];
         };
+        PagoCancelado: {
+            /** @enum {boolean} */
+            ok: true;
+            /** @description Se canceló la orden en curso. */
+            cancelled: boolean;
+            /** @description `payment` (pagar con otro medio) o `confirmacion` (ya cobró). */
+            next: string;
+            order_id?: number;
+        };
         PagoDeOrden: {
             /** @example MercadopagoPayment */
             type?: string;
@@ -3911,34 +4331,213 @@ export interface components {
                 [key: string]: string[];
             } | null;
         };
+        PagoFiservApi: {
+            /** @description Número de la tarjeta (sólo dígitos). */
+            card_number: string;
+            /** @example 12 */
+            exp_month: string;
+            /** @example 2030 */
+            exp_year: string;
+            /** @description Código de seguridad. */
+            sec_code: string;
+            cardholder_name?: string;
+            doc_number?: string;
+            /** @description La promoción elegida (`promotions/availables`). */
+            promotion_id: number;
+            bank_id: number;
+            /** @description El `firstdata_id` de la tarjeta (`promotions/cards`). */
+            credit_card_firstdata_id: string;
+            /** @description Informativo: se usa el de la promoción. */
+            full_price?: boolean;
+            /** @description Visitor id de Konduto, si la marca lo tiene. */
+            visit_id?: string;
+            email?: string;
+        };
+        PagoFiservHosted: {
+            /** @enum {boolean} */
+            ok: true;
+            order_id: number;
+            /**
+             * @description Adónde postear el form (IPG Connect de Fiserv).
+             * @example https://www5.ipg-online.com/connect/gateway/processing
+             */
+            action_url?: string;
+            /** @description Los campos ocultos del form (txntype, timezone, txndatetime, hash_algorithm, hash, storename, responseSuccessURL, responseFailURL, transactionNotificationURL, mode, chargetotal, currency, full_bypass, oid, numberOfInstallments, paymentMethodAux). El navegador agrega `cardnumber`, `expmonth`, `expyear` y `cvm`. */
+            fields?: {
+                [key: string]: string;
+            };
+            /** @example confirmacion */
+            next?: string;
+            payment_status?: string | null;
+            already_processed?: boolean;
+        };
+        PagoFiservHostedDatos: {
+            /** @description La promoción elegida (`promotions/availables`). */
+            promotion_id: number;
+            bank_id: number;
+            /** @description El `id` de la tarjeta (`promotions/cards`). */
+            credit_card_id: number;
+            /** @description Los primeros 6 dígitos (para Konduto). */
+            first_six?: string;
+            /** @description Los últimos 4 (para Konduto). */
+            last_four?: string;
+            /**
+             * @description Vencimiento MMAAAA (para Konduto).
+             * @example 122030
+             */
+            exp_date?: string;
+            /** @description Visitor id de Konduto, si la marca lo tiene. */
+            visit_id?: string;
+            email?: string;
+        };
+        PagoGiftCard: {
+            /** @enum {boolean} */
+            ok: true;
+            /** @description La compra quedó pagada entera con la gift card. */
+            paid: boolean;
+            gift_card?: {
+                last_four: string;
+                /** @description Lo que descuenta (centavos). */
+                amount_cents: number;
+                burned: boolean;
+            } | null;
+            totals?: Record<string, never>;
+            /** @example confirmacion */
+            next?: string;
+            order_id?: number;
+            already_processed?: boolean;
+        };
+        PagoGiftCardDatos: {
+            /** @description Los 19 dígitos de la gift card (sin puntos ni guiones). */
+            card_number: string;
+            /** @description Mes de vencimiento (1–12). */
+            expiration_month: string;
+            /** @description Año de vencimiento (4 dígitos). */
+            expiration_year: string;
+            /** @description Código de seguridad (3 dígitos). */
+            card_id: string;
+        };
+        PagoGiftCardQuitada: {
+            /** @enum {boolean} */
+            ok: true;
+            gift_card: null;
+            totals: components["schemas"]["CheckoutTotales"];
+        };
         PagoMetodos: {
             methods: {
-                /** @description `mercadopago` | `mp_balance` | `transferencia`. */
+                /** @description `mercadopago` | `mp_balance` | `transferencia` | `rapipago` | `pagofacil` | `modo` | `gocuotas` | `talo` | `payway` | `epostnet` | `firstdata_api` | `oh_card` | `gift_card`. */
                 id: string;
-                /** @description `card` | `redirect` | `offline`. */
+                /** @description `card` | `redirect` | `offline` | `modo` | `talo` | `payway` | `firstdata_hosted` | `firstdata_api` | `oh_card` | `gift_card`. */
                 kind: string;
+                /** @description Oh! y gift card de la marca: si se puede aplicar a este carrito (sin otra aplicada y que no sea una compra de gift cards Oh!). */
+                available?: boolean;
                 label: string;
-                /** @description Public key de Mercado Pago (sólo `card`). */
+                /** @description Public key de Mercado Pago (`card`) o de Payway para decidir.js (`payway`). */
                 public_key?: string;
-                /** @description URL del SDK de Mercado Pago (sólo `card`). */
+                /** @description URL del SDK de Mercado Pago (`card`), del modal de MODO (`modo`) o de decidir.js (`payway`). */
                 sdk_url?: string;
+                /** @description Payway: la API de Decidir con la que tokeniza decidir.js. */
+                api_url?: string;
+                /** @description Payway: la marca inhabilitó Cybersource (`new Decidir(api_url, true)`). */
+                cybersource_disabled?: boolean;
                 /** @description Descuento por transferencia (sólo `offline`). */
                 discount_percent?: number;
+                /** @description MODO: versión 2 del modal. */
+                v2?: boolean;
+                no_acumulable?: {
+                    /** @example No acumulable con cupones de descuento. */
+                    leyenda: string;
+                    /** @description Lo que se le cobra a MODO (sin el descuento excluido). */
+                    total_cents?: number;
+                    descuento_cents?: number;
+                    envio_cents?: number;
+                } | null;
             }[];
             antifraud: {
-                konduto: null;
-                clearsale: null;
+                konduto: {
+                    /** @description Public key de Konduto (k.js): el visitor id va como `visit_id` al pagar con Payway o Fiserv. */
+                    public_key: string;
+                } | null;
+                clearsale: {
+                    /** @description Client ID de ClearSale (script del fingerprint). */
+                    app_id: string;
+                    /** @description Id de sesión del fingerprint (`csdp('sessionid', …)`): el mismo que manda el análisis al pagar. */
+                    session_id: string;
+                } | null;
             };
             card_discounts: Record<string, never>[];
         };
+        PagoModo: {
+            /** @enum {boolean} */
+            ok: true;
+            order_id: number;
+            /** @description Id del pedido de pago en MODO. */
+            checkout_id?: string;
+            /** @description El QR para el SDK de MODO. */
+            qr?: string;
+            deeplink?: string;
+            /** @description Volver al carrito. */
+            callback_url?: string;
+            /** @description La confirmación de la orden. */
+            callback_url_success?: string;
+            /** @description La orden ya está en curso: no trae QR. */
+            already_processed?: boolean;
+            /** @example confirmacion */
+            next?: string;
+        };
         PagoOffline: {
             /**
-             * @description Hoy sólo `transferencia`.
+             * @description `transferencia`, `rapipago` o `pagofacil` (cupón de Mercado Pago).
              * @example transferencia
              */
             payment_method_id: string;
         };
-        /** @description Orden creada. Con tarjeta: `payment_status` (estado de la pasarela, o null si todavía no se sabe). Con Checkout Pro: `redirect_url` (llevá al comprador ahí). Si la compra viene de una sesión de checkout, `return_url`. `already_processed: true` si ese carrito ya generó una orden. */
+        PagoOhCard: {
+            /** @enum {boolean} */
+            ok: true;
+            /** @description La compra quedó pagada entera con la gift card. */
+            paid: boolean;
+            oh_card?: {
+                last_four: string;
+                /** @description Lo que descuenta (centavos). */
+                amount_cents: number;
+                authorization_code: number | null;
+            } | null;
+            totals?: Record<string, never>;
+            /** @example confirmacion */
+            next?: string;
+            order_id?: number;
+            already_processed?: boolean;
+        };
+        PagoOhCardDatos: {
+            /** @description Número de la gift card de Oh! (sin espacios). */
+            card_number: string;
+            /** @description Código de seguridad. */
+            sec_code: string;
+        };
+        PagoPayway: {
+            /** @description Token de la tarjeta (decidir.js). */
+            token: string;
+            /** @description Los primeros 6 (u 8) dígitos. */
+            bin?: string;
+            last_four_digits?: string;
+            /**
+             * @description Vencimiento MMAAAA (para Konduto).
+             * @example 122030
+             */
+            exp_date?: string;
+            /** @description La promoción elegida (`promotions/availables`). */
+            promotion_id: number;
+            bank_id: number;
+            /** @description El `payway_id` de la tarjeta (`promotions/cards`). */
+            credit_card_payway_id: string;
+            /** @description Informativo: se usa el de la promoción. */
+            full_price?: boolean;
+            /** @description Visitor id de Konduto, si la marca lo tiene. */
+            visit_id?: string;
+            email?: string;
+        };
+        /** @description Orden creada. Con tarjeta: `payment_status` (estado de la pasarela, o null si todavía no se sabe). Con Checkout Pro: `redirect_url` (llevá al comprador ahí). Con Rapipago / Pago Fácil: `external_ticket_url` (el cupón para imprimir; también sale en la confirmación). Si la compra viene de una sesión de checkout, `return_url`. `already_processed: true` si ese carrito ya generó una orden. */
         PagoResultado: {
             /** @enum {boolean} */
             ok: true;
@@ -3949,6 +4548,8 @@ export interface components {
             payment_status?: string | null;
             /** @description Checkout Pro de Mercado Pago (mp_balance). */
             redirect_url?: string;
+            /** @description Cupón de Mercado Pago para pagar en efectivo (rapipago / pagofacil). */
+            external_ticket_url?: string;
             /** @description Vuelta a la agencia (sólo compras de una sesión de checkout). */
             return_url?: string;
             already_processed?: boolean;
@@ -4004,7 +4605,7 @@ export interface components {
             /** @example $7.667 */
             formatted_amount: string;
         };
-        /** @description Etiqueta (cucarda) de la app Etiquetas. Las claves opcionales no viajan si están vacías. */
+        /** @description Etiqueta (cucarda) de la app Etiquetas. Las claves opcionales no viajan si están vacías. Una etiqueta de descuento cuyo % cambia según el color viaja una vez por cada %: el mismo `id` puede repetirse, una por grupo de colores (con su `text`, `discount_percent` y `color_option_ids`), nunca dos veces en el mismo color. */
         ProductoEtiqueta: {
             id?: number;
             priority?: number | null;
@@ -4113,6 +4714,8 @@ export interface components {
             pre_order?: boolean;
             no_stock?: boolean;
             grouped_variant_ids?: number[] | null;
+            /** @description Los talles del color con el que abre la ficha: misma forma y orden que en change_variant (si viene, no hace falta pedirlo). */
+            size_variants?: components["schemas"]["FichaTalle"][];
             /** @description Valor crudo del catálogo (tipo según la marca). */
             out_of_stock_enabled?: unknown;
             ver_similares?: boolean;
@@ -4492,6 +5095,38 @@ export interface components {
                 };
             };
         };
+        PromocionesBancos: {
+            banks: {
+                id: number;
+                name: string | null;
+            }[];
+        };
+        PromocionesDisponibles: {
+            promotions: {
+                id: number;
+                name: string | null;
+                /** @description Código de cuotas: 13 = 3, 16 = 6, 7 = 12 (Plan Ahora); el resto, la cantidad. */
+                fee: number;
+                /** @description Costo financiero total (0 = sin interés). */
+                ctf: number;
+                /** @description Se cobra a precio de lista (`full_price_total_cents`). */
+                full_price: boolean;
+                /** @description Reintegro del banco (informativo). */
+                bank_discount_percent: number;
+                merchant_id: string | null;
+                bank_id: number | null;
+                credit_card_id: number | null;
+            }[];
+        };
+        PromocionesTarjetas: {
+            cards: {
+                id: number;
+                name: string | null;
+                payway_id: string | null;
+                firstdata_id: string | null;
+                mercadopago_id: string | null;
+            }[];
+        };
         Resena: {
             id: number;
             rating: number;
@@ -4694,7 +5329,7 @@ export interface components {
                 url: string;
             }[];
             photo_count: number;
-            /** @description Resumen generado de las opiniones (sólo si existe). */
+            /** @description Resumen de las opiniones generado automáticamente con IA (mostrarlo etiquetado como automático). Sólo viaja si la tienda lo tiene prendido y ya hay uno generado (desde 5 opiniones publicadas, se rehace cada 5 nuevas en la corrida diaria). */
             ai_summary?: {
                 text: string;
                 /** @description Sobre cuántas opiniones se armó. */
@@ -5644,6 +6279,81 @@ export interface operations {
             };
         };
     };
+    Cart_recover: {
+        parameters: {
+            query: {
+                utm_campaign?: string;
+                /** @description Token firmado del link del mail. */
+                r: string;
+            };
+            header?: {
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirige al carrito */
+            302: {
+                headers: {
+                    /** @description El carrito de la tienda, con los UTM. */
+                    Location?: string;
+                    /** @description Token del carrito recién creado (sólo si el navegador no tenía). */
+                    "X-Cart-Token"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    Cart_paginaDeBaja: {
+        parameters: {
+            query: {
+                /** @description Token firmado del link de baja. */
+                r: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+        };
+    };
+    Cart_darDeBaja: {
+        parameters: {
+            query: {
+                /** @description Token firmado del link de baja. */
+                r: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+        };
+    };
     Cart_removeCoupon: {
         parameters: {
             query?: never;
@@ -5892,6 +6602,299 @@ export interface operations {
             };
         };
     };
+    CheckoutPayment_cancelar: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoCancelado"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_firstdataApi: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Clave de idempotencia del intento de pago (texto imprimible, hasta 200 caracteres). Reintentar con la misma clave devuelve la misma respuesta sin volver a cobrar. */
+                "X-Idempotency-Key"?: string;
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagoFiservApi"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoResultado"];
+                };
+            };
+            /** @description Prohibido */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_firstdataHosted: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Clave de idempotencia (texto imprimible, hasta 200 caracteres). La misma clave devuelve el mismo form; una nueva, con la orden anterior todavía sin pagar, la cancela y arma otra. */
+                "X-Idempotency-Key"?: string;
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagoFiservHostedDatos"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoFiservHosted"];
+                };
+            };
+            /** @description Prohibido */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_giftCard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Clave de idempotencia (la usa la orden si la compra queda en cero). */
+                "X-Idempotency-Key"?: string;
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagoGiftCardDatos"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoGiftCard"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_quitarGiftCard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoGiftCardQuitada"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_gocuotas: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Clave de idempotencia del intento de pago. Reintentar con la misma clave devuelve la misma respuesta sin crear otro checkout. */
+                "X-Idempotency-Key"?: string;
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoResultado"];
+                };
+            };
+            /** @description Prohibido */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
     CheckoutPayment_mercadopago: {
         parameters: {
             query?: never;
@@ -5951,7 +6954,10 @@ export interface operations {
     CheckoutPayment_methods: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -5964,6 +6970,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PagoMetodos"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_modo: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Clave de idempotencia del intento de pago. La misma clave devuelve el mismo QR; con la orden ya en curso y otra clave, `already_processed` sin QR. */
+                "X-Idempotency-Key"?: string;
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoModo"];
+                };
+            };
+            /** @description Prohibido */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
                 };
             };
             /** @description Error interno */
@@ -6046,6 +7104,263 @@ export interface operations {
                 "application/json": components["schemas"]["PagoOffline"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoResultado"];
+                };
+            };
+            /** @description Prohibido */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_ohCard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Clave de idempotencia (la usa la orden si la compra queda en cero). */
+                "X-Idempotency-Key"?: string;
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagoOhCardDatos"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoOhCard"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_payway: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Clave de idempotencia del intento de pago (texto imprimible, hasta 200 caracteres). Reintentar con la misma clave devuelve la misma respuesta sin volver a cobrar. */
+                "X-Idempotency-Key"?: string;
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagoPayway"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoResultado"];
+                };
+            };
+            /** @description Prohibido */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_promocionesDisponibles: {
+        parameters: {
+            query: {
+                bank: number;
+                credit_card: number;
+            };
+            header: {
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromocionesDisponibles"];
+                };
+            };
+            /** @description Datos inválidos o paso incompleto */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_promocionesBancos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromocionesBancos"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_promocionesTarjetas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromocionesTarjetas"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoError"];
+                };
+            };
+        };
+    };
+    CheckoutPayment_talo: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Clave de idempotencia del intento de pago. Reintentar con la misma clave devuelve la misma respuesta sin crear otra intención en Talo. */
+                "X-Idempotency-Key"?: string;
+                /** @description Token del carrito (`crt_…`). Vuelve en el header de respuesta `X-Cart-Token` cuando el primer "agregar" crea el carrito. */
+                "X-Cart-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -7426,6 +8741,8 @@ export interface operations {
                 llega_hoy?: string;
                 /** @description SKUs separados por espacio. */
                 variant_sku?: string;
+                /** @description Entender lo tipeado (default 1): colores, talles y precios escritos en `q` se aplican como filtros y vuelven en `understood`. `0` busca el texto tal cual (lo usa el front al sacar un chip). Los filtros explícitos siempre ganan. */
+                understand?: "0" | "1";
                 /** @description Orden (default: relevancia). */
                 sort?: "relevance" | "newest" | "price_asc" | "price_desc" | "popular";
                 /** @description Lo que buscó la persona. */
@@ -7858,6 +9175,26 @@ export interface operations {
             };
         };
     };
+    EventLogos_eventLogos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigLogosDeEvento"];
+                };
+            };
+        };
+    };
     Roulette_config: {
         parameters: {
             query?: never;
@@ -7876,6 +9213,8 @@ export interface operations {
                     "application/json": {
                         installed?: boolean;
                         enabled?: boolean;
+                        /** @description La campana que se esta mostrando. */
+                        campaign_id?: number;
                         title?: string;
                         prizes?: {
                             id?: number;
@@ -7902,6 +9241,10 @@ export interface operations {
                     phone?: string;
                     accepts_marketing?: boolean;
                     device_token?: string;
+                    /** @description `mobile` o `desktop`. Sólo para el dashboard. */
+                    device?: string;
+                    /** @description El pathname de la página donde se jugó. Sólo para el dashboard, y NO se guarda crudo: se clasifica en un tipo de página y se descarta. */
+                    path?: string;
                 };
             };
         };

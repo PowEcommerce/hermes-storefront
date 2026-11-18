@@ -12,6 +12,7 @@ export const CACHE_OPERATIONS = {
   Apps_apps: { path: "/api/v2/storefront/apps", tags: ["settings"], ttl: "long" },
   Categories_header: { path: "/api/v2/categories/header", tags: ["header","categories"], ttl: "long" },
   Config_config: { path: "/api/v2/storefront/config", tags: ["settings"], ttl: "long" },
+  EventLogos_eventLogos: { path: "/api/v2/storefront/event-logos", tags: ["settings","logos-de-evento"], ttl: "short" },
   Home_instagram: { path: "/api/v2/home/instagram", tags: [], ttl: "long" },
   Home_pageBlocks: { path: "/api/v2/home/page_blocks", tags: ["home-page-blocks"], ttl: "short" },
   Items_filters: { path: "/api/storefront/items/filters", tags: ["products","category-{category_name}"], ttl: "short" },
