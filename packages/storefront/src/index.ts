@@ -87,6 +87,43 @@ export type {
   ShownProduct,
   CreateSearchEventsRouteOptions,
 } from './search';
+export {
+  GOPERSONAL_APP_SLUG,
+  GOPERSONAL_SDK_URL,
+  GOPERSONAL_SW_URL,
+  GOPERSONAL_SW_PATH,
+  GOPERSONAL_SW_FALLBACK,
+  GOPERSONAL_IDENTITY_COOKIE,
+  GOPERSONAL_IDENTITY_MAX_AGE,
+  goPersonalFrom,
+  goPersonalContextFor,
+  goPersonalCartLines,
+  goPersonalIdentityCookie,
+  parseGoPersonalIdentity,
+  loadGoPersonal,
+  goPersonalPage,
+  trackGoPersonalProductView,
+  trackGoPersonalAddToCart,
+  trackGoPersonalRemoveFromCart,
+  trackGoPersonalQuantityChange,
+  trackGoPersonalCart,
+  trackGoPersonalPurchase,
+  goPersonalLogin,
+  goPersonalLogout,
+  consumeGoPersonalIdentity,
+  createGoPersonalServiceWorkerRoute,
+} from './gopersonal';
+export type {
+  GoPersonalSettings,
+  GoPersonalPageType,
+  GoPersonalContext,
+  GoPersonalRoutes,
+  GoPersonalCartLine,
+  GoPersonalSdk,
+  GoPersonalIdentity,
+  LoadGoPersonalOptions,
+  CreateGoPersonalServiceWorkerRouteOptions,
+} from './gopersonal';
 export { SDK_VERSION, DEFAULT_USER_AGENT } from './version';
 export type {
   HandleRevalidateWebhookInput,

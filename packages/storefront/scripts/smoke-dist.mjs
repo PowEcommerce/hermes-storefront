@@ -75,3 +75,23 @@ for (const f of ['../dist/search.js', '../dist/search.cjs']) {
   assert.doesNotMatch(codigo, /node:crypto|next\/cache/, `${f}: sin dependencias de Node ni de Next`);
 }
 console.log('search: OK');
+
+// El subpath /gopersonal (app Go Personal) es liviano y anda en ESM y CJS.
+const gpEsm = await import('../dist/gopersonal.js');
+const gpCjs = require('../dist/gopersonal.cjs');
+for (const g of [gpEsm, gpCjs]) {
+  assert.deepEqual(g.goPersonalFrom({ gopersonal: { sdk_enabled: true, client_id: 'x', push_enabled: true } }), {
+    sdkEnabled: true,
+    clientId: 'x',
+    pushEnabled: true,
+  });
+  assert.equal(typeof g.createGoPersonalServiceWorkerRoute, 'function');
+  // Fuera del navegador no hace nada (y nunca tira).
+  g.loadGoPersonal('x');
+  g.trackGoPersonalProductView(1);
+}
+for (const f of ['../dist/gopersonal.js', '../dist/gopersonal.cjs']) {
+  const codigo = readFileSync(new URL(f, import.meta.url), 'utf8');
+  assert.doesNotMatch(codigo, /node:crypto|next\/cache/, `${f}: sin dependencias de Node ni de Next`);
+}
+console.log('gopersonal: OK');
