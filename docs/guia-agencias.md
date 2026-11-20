@@ -503,6 +503,33 @@ se escriben en tu `.env`. Pide ser admin de la marca. Volver a linkear el
 mismo proyecto con la misma cuenta **rota** sus tokens (los anteriores se revocan; los de otra agencia o de Pow no se tocan). Más en
 [`cli.md`](./cli.md).
 
+**El privado, según dónde hostees.** Es un secreto de SERVIDOR: nunca en una
+`NEXT_PUBLIC_*`, nunca en el repo, nunca en el navegador.
+
+- **Hosting de Hermes (`hermes deploy`):** no hacés nada. Cada deploy pone en
+  el worker `HERMES_PUBLIC_TOKEN` y `HERMES_PRIVATE_TOKEN` como secretos: son
+  los tokens **de la tienda** (por proyecto y entorno, no los de ningún
+  developer), Hermes los guarda cifrados y los vuelve a poner en cada deploy
+  y rollback. El privado nunca sale a un `.env` ni al build. Rotarlos: `hermes tokens
+  rotate --runtime` (re-deploya con los nuevos y recién después revoca los
+  anteriores). Al dar de baja el hosting de la marca se revocan.
+- **Desarrollo local:** `hermes link` (o `hermes env pull --rotate`) escribe
+  en tu `.env` **tus** tokens de desarrollo, privado incluido. Son personales:
+  dejan de valer si te sacan el acceso a la marca o si volvés a linkear.
+- **Otro hosting (Vercel, Netlify, tu Cloudflare):** cargá el privado como
+  variable de entorno de servidor del proyecto (en Vercel, `HERMES_PRIVATE_TOKEN`
+  marcada como *Sensitive*, sin prefijo `NEXT_PUBLIC_`) y pasalo a
+  `createStorefrontClient({ privateToken })` sólo en el código de servidor.
+  Para producción **no uses el de tu `hermes link`** (es personal: se cae si
+  te sacan el acceso o relinkeás): pedile a Pow un privado de la tienda
+  (`checkout_sessions:read`, y `webhooks:manage` si usás webhooks).
+
+Con el privado tu servidor puede además informar la IP real del comprador en
+los pedidos que la necesitan (hoy, el giro de la ruleta: `roulette.spin(body,
+{ visitorIp })`, que manda `X-Visitor-IP`). La API sólo cree esa IP si viene
+con un token privado: sin él, el giro anda igual pero sin el tope por
+visitante.
+
 **`X-Client-ID`.** Algunas marcas todavía aceptan `X-Client-ID: <marca>` en lugar
 del token público. No lo uses en un desarrollo nuevo: la marca puede pasar a
 exigir token en cualquier momento (y entonces sin token recibís `401 Falta el
@@ -1184,6 +1211,11 @@ sensible (pueden cambiar; respetá `Retry-After`):
 | `POST /v2/webhook_subscriptions/{id}/rotate_secret` | 30 / hora por IP y por token |
 | `POST /v2/webhook_subscriptions/{id}/test` | 30 / hora por IP y 10 / hora por token |
 
+La ruleta (`POST /v2/storefront/roulette/spin`) además topea cupones por
+visitante: girá desde tu servidor con el token privado y la IP del comprador
+en `X-Visitor-IP` (`roulette.spin(body, { visitorIp })` del SDK). Sin el
+privado la API no confía en esa IP y ese tope no se aplica.
+
 Si llamás desde tu servidor, todo tu tráfico sale de pocas IPs: para login y
 registro reenviá la IP real del comprador en `X-Forwarded-For` desde un proxy
 de confianza, o hablá con Pow.
@@ -1202,6 +1234,8 @@ de confianza, o hablá con Pow.
 
 - [ ] El token privado está sólo en variables de entorno del servidor (con
       `hermes deploy` ya va como secreto del worker).
+- [ ] Hosteada afuera de Hermes: el privado de producción es uno de la
+      tienda (pedido a Pow), no el personal de tu `hermes link`.
 - [ ] Con el hosting de Hermes: `hermes domains list` muestra tu dominio
       (www. y checkout.) **activo**, y probaste un rollback en una preview.
 - [ ] Tus dominios de producción están cargados en el token público.

@@ -1,6 +1,6 @@
 {
   "name": "@hermesecommerce/storefront",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "SDK TypeScript de la Storefront API v2 de Pow/Hermes para storefronts headless.",
   "license": "MIT",
   "repository": {

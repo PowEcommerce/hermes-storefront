@@ -826,6 +826,83 @@ export function createStorefrontClient(opts: StorefrontClientOptions) {
   };
 
   // -------------------------------------------------------------------------
+  // Ruleta de premios (app Ruleta)
+  // -------------------------------------------------------------------------
+  /** `X-Visitor-IP` sólo con algo que parezca una IP (sin comas ni espacios). */
+  const ipValida = (ip?: string | null): string | null => {
+    const v = typeof ip === 'string' ? ip.trim() : '';
+    return v && /^[0-9a-fA-F:.]+$/.test(v) && v.length <= 45 ? v : null;
+  };
+  const roulette = {
+    /**
+     * La campaña activa (textos, colores, gajos SIN pesos). `installed: false`
+     * = la app no está instalada; `enabled: false` = no hay campaña ahora.
+     */
+    config: (o?: RequestOptions) =>
+      data<Ok<'Roulette_config'>>('GET', '/api/v2/storefront/roulette', {
+        options: o,
+      }),
+    /**
+     * +1 a las vistas del día (telemetría): `device` y `path` opcionales.
+     * NUNCA tira: un error de la API no le puede romper la página al visitante.
+     */
+    view: (
+      body: { device?: string; path?: string } = {},
+      o?: RequestOptions,
+    ): Promise<void> =>
+      data<unknown>('POST', '/api/v2/storefront/roulette/views', {
+        body,
+        options: o,
+      }).then(
+        () => undefined,
+        () => undefined,
+      ),
+    /**
+     * El giro. Llamalo DESDE TU SERVIDOR (route handler / server action) y
+     * pasá `visitorIp` con la IP de quien juega (en un Worker de Cloudflare,
+     * `request.headers.get('cf-connecting-ip')`).
+     *
+     * Con `privateToken` configurado (en el hosting de Hermes viene solo, como
+     * `HERMES_PRIVATE_TOKEN`), el giro va con el token PRIVADO y
+     * `X-Visitor-IP`: la API confía en esa IP y aplica el tope de cupones por
+     * visitante. Sin privado (o en el navegador) va con el público y sin
+     * `X-Visitor-IP` (la API la ignoraría): la ruleta anda igual, sin el tope
+     * por IP. Si el privado está revocado (401), reintenta una vez con el
+     * público: el 401 se corta antes del sorteo, no hay doble giro.
+     */
+    spin: async (
+      body: Body<'Roulette_spin'>,
+      o: RequestOptions & { visitorIp?: string | null } = {},
+    ): Promise<Ok<'Roulette_spin'>> => {
+      const { visitorIp, ...opciones } = o;
+      const publico = () =>
+        data<Ok<'Roulette_spin'>>(
+          'POST',
+          '/api/v2/storefront/roulette/spin',
+          { body, options: opciones },
+        );
+      if (!privateToken || enNavegador()) return publico();
+      const ip = ipValida(visitorIp);
+      try {
+        return await data<Ok<'Roulette_spin'>>(
+          'POST',
+          '/api/v2/storefront/roulette/spin',
+          {
+            body,
+            auth: 'private',
+            headers: ip ? { 'X-Visitor-IP': ip } : {},
+            options: opciones,
+          },
+        );
+      } catch (e) {
+        if (isHermesApiError(e) && e.status === 401 && (publicToken || tenant))
+          return publico();
+        throw e;
+      }
+    },
+  };
+
+  // -------------------------------------------------------------------------
   // Webhooks (self-service, token PRIVADO con scope webhooks:manage)
   // -------------------------------------------------------------------------
   const webhooks = {
@@ -1025,6 +1102,10 @@ export function createStorefrontClient(opts: StorefrontClientOptions) {
     account,
     checkoutSessions,
     reviews: reviewsConTags,
+    roulette: {
+      ...roulette,
+      config: conTags(roulette.config, () => tagsDe('Roulette_config')),
+    },
     webhooks,
   };
 }

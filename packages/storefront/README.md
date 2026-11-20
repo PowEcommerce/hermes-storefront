@@ -89,7 +89,7 @@ el starter [`starter/`](https://github.com/PowEcommerce/hermes-storefront/tree/m
 |---|---|---|
 | `tenant` | `X-Client-ID` | En todos los pedidos. Con token, el token manda. |
 | `publicToken` (`pst_…`) | `X-Storefront-Token` | Todos los métodos salvo los privados. Puede ir al navegador. |
-| `privateToken` (`psk_…`) | `X-Storefront-Private-Token` | Sólo `checkoutSessions.get` y `webhooks.*`. En esos pedidos va **sólo** el privado (nunca los dos juntos). |
+| `privateToken` (`psk_…`) | `X-Storefront-Private-Token` | `checkoutSessions.get`, `webhooks.*` y, si está, `roulette.spin` (con `X-Visitor-IP`). En esos pedidos va **sólo** el privado (nunca los dos juntos). |
 
 - Crear un cliente con `privateToken` en el navegador (`typeof window !== 'undefined'`)
   tira `HermesConfigError`. Para el front, creá otro cliente sólo con `publicToken`.
@@ -292,6 +292,38 @@ para que el carrito quede asociado a la cuenta.
 `webhooks.list()`, `webhooks.create({ event: 'checkout/completed' | 'storefront/revalidate', url })`
 (el `secret` vuelve UNA vez), `webhooks.delete(id)`,
 `webhooks.rotateSecret(id)`, `webhooks.test(id)`.
+
+### `roulette` (app Ruleta de premios)
+| Método | Token | Endpoint |
+|---|---|---|
+| `roulette.config()` | público (tag `settings`) | `GET /api/v2/storefront/roulette` |
+| `roulette.view({ device?, path? })` | público; nunca tira | `POST /api/v2/storefront/roulette/views` |
+| `roulette.spin(body, { visitorIp })` | **privado** si lo configuraste; si no, público | `POST /api/v2/storefront/roulette/spin` |
+
+Girá **desde tu servidor** (route handler / server action) y pasá la IP de
+quien juega en `visitorIp` (en un Worker de Cloudflare,
+`request.headers.get('cf-connecting-ip')`). Con `privateToken` el giro va
+con el privado y `X-Visitor-IP`, y la API aplica el tope de cupones por
+visitante; sin privado (o en el navegador) va con el público, sin IP, y la
+ruleta anda igual pero sin ese tope. Si el privado está revocado (401),
+reintenta una vez con el público (el 401 corta antes del sorteo).
+
+```ts
+// app/api/ruleta/spin/route.ts
+export async function POST(req: Request) {
+  const body = await req.json();
+  const r = await pow.roulette.spin(
+    { email: body.email, device_token: body.device_token, accepts_marketing: body.accepts_marketing },
+    { visitorIp: req.headers.get('cf-connecting-ip') ?? req.headers.get('x-real-ip') },
+  );
+  return Response.json(r);
+}
+```
+
+En el hosting de Hermes el privado ya está en el worker como
+`HERMES_PRIVATE_TOKEN` (lo pone y lo rota Hermes en cada deploy): sólo
+pasalo a `createStorefrontClient({ privateToken: process.env.HERMES_PRIVATE_TOKEN })`
+en el cliente del servidor.
 
 ### Cualquier otro endpoint: `api`
 Cliente tipado genérico sobre los 94 paths de la spec (settings, home, landings,
