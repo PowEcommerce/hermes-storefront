@@ -963,6 +963,26 @@ perder (tu endpoint caído, un despliegue). Con stale-while-revalidate el TTL
 no le cuesta latencia al comprador. Sin suscripción, el TTL es lo único que
 actualiza tu caché.
 
+### 5. Lo que se prerenderiza en el build
+
+Las páginas estáticas que Next arma en el build (la home, una página de
+contacto, todo lo que no lea cookies ni `searchParams`) quedan servidas tal
+cual salieron del build hasta su primer revalidate. Si en el build el SDK no
+tiene marca ni token, cada pedido falla, tu página cae a su fallback (sin
+ruleta, sin banners, el pop-up de newsletter en vez de la ruleta…) y así queda
+**después de cada deploy** hasta que se regenera.
+
+- **Con `hermes deploy`** no tenés que hacer nada: el build recibe
+  `HERMES_TENANT`, `HERMES_API_URL` y el `HERMES_PUBLIC_TOKEN` de la tienda
+  (el `pst_` de runtime del proyecto y entorno), y con eso alcanza para las
+  lecturas públicas (`config`, catálogo, contenido, `roulette.config()`). El
+  privado nunca entra al build.
+- **Hosteada afuera**: esas tres tienen que estar también en el entorno del
+  **build**, no sólo en el del servidor. Ojo en Cloudflare con OpenNext: los
+  `vars` del `wrangler.jsonc` llegan al worker en runtime, pero `next build`
+  no los ve. Nunca pongas el `psk_` en el build: lo que lea el prerender tiene
+  que poder leerse con el público.
+
 ---
 
 ## 9. Reseñas
@@ -1249,6 +1269,9 @@ de confianza, o hablá con Pow.
 - [ ] El catálogo y el contenido están cacheados por tags (`x-cache-tags`)
       con TTL de red de seguridad, y suscriptos a `storefront/revalidate`;
       carrito, cuenta y checkout no se cachean.
+- [ ] Hosteada afuera de Hermes: `HERMES_TENANT`, `HERMES_API_URL` y el
+      `pst_` están también en el entorno del build (si no, las páginas
+      prerenderizadas salen sin datos después de cada deploy).
 - [ ] Manejás 401 (token revocado / sesión vencida), 422 y 429.
 - [ ] Si la marca tiene el buscador inteligente: mandás los cuatro eventos
       por una ruta de tu servidor con la IP del comprador, y con la app
